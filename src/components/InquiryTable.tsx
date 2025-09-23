@@ -420,7 +420,7 @@ const InquiryTable: React.FC = () => {
       {isDeskripsiModalOpen && selectedInquiry && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           {/* Overlay */}
-          <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => setIsDeskripsiModalOpen(false)} />
+          <div className="fixed inset-0 bg-black bg-opacity-10" onClick={() => setIsDeskripsiModalOpen(false)} />
           {/* Centered Modal */}
           <div className="relative bg-white rounded-2xl shadow-lg w-full max-w-2xl max-h-[90vh] flex flex-col border border-gray-200 overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b rounded-t-2xl">
@@ -528,9 +528,8 @@ const InquiryTable: React.FC = () => {
                               Selesai
                             </button>
                             <button
-                              onClick={() => { if (inquiry.status !== 'batal' && inquiry.status !== 'selesai') { openActionModal(inquiry); setSelectedActionInquiryId(null); } }}
-                              className={`w-full text-left px-4 py-2 text-sm font-medium transition-colors ${inquiry.status === 'batal' || inquiry.status === 'selesai' ? 'opacity-50 cursor-not-allowed bg-gray-100 text-gray-400' : 'text-gray-700 hover:bg-red-50 hover:text-red-700'}`}
-                              disabled={inquiry.status === 'batal' || inquiry.status === 'selesai'}
+                              onClick={() => { openActionModal(inquiry); setSelectedActionInquiryId(null); }}
+                              className="w-full text-left px-4 py-2 text-sm font-medium transition-colors text-gray-700 hover:bg-red-50 hover:text-red-700"
                             >
                               Batalkan
                             </button>
@@ -588,11 +587,17 @@ const InquiryTable: React.FC = () => {
                               Proses
                             </button>
                             <button
-                              onClick={() => { if (inquiry.status !== 'batal' && inquiry.status !== 'selesai') { openActionModal(inquiry); setSelectedActionInquiryId(null); } }}
+                              onClick={() => { openActionModal(inquiry); setSelectedActionInquiryId(null); }}
+                              className="w-full text-left px-4 py-2 text-sm font-medium transition-colors text-gray-700 hover:bg-red-50 hover:text-red-700"
+                            >
+                              Batalkan
+                            </button>
+                            <button
+                              onClick={() => { if (inquiry.status !== 'batal' && inquiry.status !== 'selesai') { openActionModal(inquiry, 'selesai'); setSelectedActionInquiryId(null); } }}
                               className={`w-full text-left px-4 py-2 text-sm font-medium rounded-b-xl transition-colors ${inquiry.status === 'batal' || inquiry.status === 'selesai' ? 'opacity-50 cursor-not-allowed bg-gray-100 text-gray-400' : 'text-gray-700 hover:bg-green-50 hover:text-green-700'}`}
                               disabled={inquiry.status === 'batal' || inquiry.status === 'selesai'}
                             >
-                              Update
+                              Selesai Inquiry
                             </button>
                           </>
                         )}
@@ -853,14 +858,16 @@ const InquiryTable: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-600 mb-2">Lampiran</label>
                     <div className="flex flex-wrap gap-2">
                       {processInquiry.attachments.map((attachment, index) => (
-                        <button
+                        <a
                           key={index}
-                          onClick={() => setPreviewAttachment(attachment)}
+                          href={attachment.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm"
                         >
                           <FileText size={16} />
                           {attachment.name}
-                        </button>
+                        </a>
                       ))}
                     </div>
                   </div>

@@ -8,6 +8,7 @@ const LoginForm: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({ userId: '', password: '' });
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useApp();
@@ -26,7 +27,35 @@ const LoginForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setFieldErrors({ userId: '', password: '' });
     setIsLoading(true);
+
+    // Validation
+    let hasErrors = false;
+    const newFieldErrors = { userId: '', password: '' };
+
+    if (!userId.trim()) {
+      newFieldErrors.userId = 'User id belum diisi';
+      hasErrors = true;
+    } else {
+      // Check if user exists
+      const user = dummyUsers.find(u => u.user_id === userId.trim());
+      if (!user) {
+        newFieldErrors.userId = 'User ID tidak ditemukan';
+        hasErrors = true;
+      }
+    }
+
+    if (!password.trim()) {
+      newFieldErrors.password = 'Password belum diisi';
+      hasErrors = true;
+    }
+
+    if (hasErrors) {
+      setFieldErrors(newFieldErrors);
+      setIsLoading(false);
+      return;
+    }
 
     try {
       // Simulate API call delay for better UX
@@ -47,7 +76,7 @@ const LoginForm: React.FC = () => {
           localStorage.removeItem('password');
         }
       } else {
-        setError('User ID atau password salah');
+        setError('Password salah');
       }
     } catch (error) {
       setError('Terjadi kesalahan saat login');
@@ -100,9 +129,11 @@ const LoginForm: React.FC = () => {
                 onChange={(e) => setUserId(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-blue-400 focus:outline-none transition-all text-gray-900 placeholder-gray-400"
                 placeholder="Enter your user ID"
-                required
                 disabled={isLoading}
               />
+              {fieldErrors.userId && (
+                <p className="text-red-500 text-xs mt-1 font-light">{fieldErrors.userId}</p>
+              )}
             </div>
 
             <div>
@@ -117,7 +148,6 @@ const LoginForm: React.FC = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-blue-400 focus:outline-none transition-all text-gray-900 placeholder-gray-400"
                   placeholder="Enter your password"
-                  required
                   disabled={isLoading}
                 />
                 <button
@@ -129,6 +159,9 @@ const LoginForm: React.FC = () => {
                   {showPassword ? <Eye size={16} /> : <EyeOff size={16} />}
                 </button>
               </div>
+              {fieldErrors.password && (
+                <p className="text-red-500 text-xs mt-1 font-light">{fieldErrors.password}</p>
+              )}
             </div>
 
             <div className="flex items-center justify-start text-xs">

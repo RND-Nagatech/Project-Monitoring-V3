@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import InquiryForm from './InquiryForm';
 import InquiryTable from './InquiryTable';
@@ -71,7 +71,6 @@ const Dashboard: React.FC = () => {
                   onClick={() => setIsFormOpen(true)}
                   className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors text-sm sm:text-base"
                 >
-                  <Plus size={16} className="sm:w-5 sm:h-5" />
                   <span className="hidden xs:inline">Tambah Inquiry</span>
                   <span className="xs:hidden">Tambah</span>
                 </button>

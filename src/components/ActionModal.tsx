@@ -98,8 +98,10 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
       } else if (userRole === 'qc') {
         if (actionType === 'proses') {
           updates.status = 'on progress QA';
+        } else if (actionType === 'selesai') {
+          updates.status = 'selesai';
         } else {
-          updates.status = 'ready for update';
+          updates.status = 'batal';
         }
       } else if (userRole === 'finance') {
         updates.status = 'paid off';
@@ -455,7 +457,7 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
   const getSubmitButtonText = () => {
     switch (userRole) {
       case 'produksi': return 'Update Data';
-      case 'qc': return actionType === 'proses' ? 'Proses' : 'Selesai Inquiry';
+      case 'qc': return actionType === 'proses' ? 'Proses' : actionType === 'selesai' ? 'Selesai Inquiry' : 'Batalkan Inquiry';
       case 'finance': return 'Selesai Inquiry';
       case 'helpdesk': return actionType === 'selesai' ? 'Selesai Inquiry' : 'Batal Inquiry';
       default: return 'Update';
@@ -465,7 +467,7 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
   const getSubmitButtonColor = () => {
     switch (userRole) {
       case 'produksi': return 'bg-blue-600 hover:bg-blue-700';
-      case 'qc': return 'bg-green-600 hover:bg-green-700';
+      case 'qc': return actionType === 'proses' ? 'bg-blue-600 hover:bg-blue-700' : actionType === 'selesai' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700';
       case 'finance': return 'bg-orange-600 hover:bg-orange-700';
       case 'helpdesk': return actionType === 'selesai' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700';
       default: return 'bg-blue-600 hover:bg-blue-700';
@@ -475,7 +477,7 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
   const getSubmitIcon = () => {
     switch (userRole) {
       case 'helpdesk': return actionType === 'selesai' ? <CheckCircle size={20} /> : <XCircle size={20} />;
-      default: return <CheckCircle size={20} />;
+      case 'qc': return actionType === 'proses' ? <CheckCircle size={20} /> : actionType === 'selesai' ? <CheckCircle size={20} /> : <XCircle size={20} />;
     }
   };
 
