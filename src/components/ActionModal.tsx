@@ -99,7 +99,7 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
         if (actionType === 'proses') {
           updates.status = 'on progress QA';
         } else if (actionType === 'selesai') {
-          updates.status = 'selesai';
+          updates.status = 'ready for update';
         } else {
           updates.status = 'batal';
         }
@@ -457,7 +457,7 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
   const getSubmitButtonText = () => {
     switch (userRole) {
       case 'produksi': return 'Update Data';
-      case 'qc': return actionType === 'proses' ? 'Proses' : actionType === 'selesai' ? 'Selesai Inquiry' : 'Batalkan Inquiry';
+      case 'qc': return actionType === 'proses' ? 'Proses' : actionType === 'selesai' ? 'Selesai' : 'Batalkan Inquiry';
       case 'finance': return 'Selesai Inquiry';
       case 'helpdesk': return actionType === 'selesai' ? 'Selesai Inquiry' : 'Batal Inquiry';
       default: return 'Update';

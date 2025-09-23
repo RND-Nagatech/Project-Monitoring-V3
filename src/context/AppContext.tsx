@@ -54,10 +54,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const logout = () => {
     setUser(null);
-    // Clear all saved authentication data
+    // Only clear current session data, keep remember me credentials
     localStorage.removeItem('userData');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('password');
   };
 
   const addInquiry = (inquiryData: Omit<Inquiry, 'id' | 'created_at' | 'updated_at'>) => {

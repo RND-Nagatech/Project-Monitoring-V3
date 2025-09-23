@@ -5,6 +5,7 @@ import { FileText, Download, X, ClipboardList, MoreVertical } from 'lucide-react
 import { useApp } from '../context/AppContext';
 import { Attachment, Inquiry } from '../types';
 import ActionModal from './ActionModal';
+import jsPDF from 'jspdf';
 
 const InquiryTable: React.FC = () => {
   const { inquiries, user, updateInquiry } = useApp();
@@ -67,7 +68,7 @@ const InquiryTable: React.FC = () => {
     } else {
       biayaMsg = 'Status biaya permintaan Anda belum ditentukan.';
     }
-    const statusMsg = `Status permintaan Anda saat ini: ${inquiry.status === 'progress' ? 'Sedang diproses' : inquiry.status === 'selesai' ? 'Sudah selesai' : inquiry.status === 'wait for payment' ? 'Menunggu pembayaran' : inquiry.status === 'on going QA' ? 'Sedang dalam Quality Assurance' : inquiry.status === 'on progress QA' ? 'Sedang dalam Quality Assurance' : inquiry.status === 'paid off' ? 'Sudah dibayar' : inquiry.status === 'ready for update' ? 'Siap untuk diupdate' : inquiry.status}.`;
+    const statusMsg = `Status permintaan Anda saat ini: ${inquiry.status === 'progress' ? 'Sedang diproses' : inquiry.status === 'selesai' ? 'Sudah selesai' : inquiry.status === 'wait for payment' ? 'Menunggu pembayaran' : inquiry.status === 'on going QA' ? 'Sedang dalam Quality Assurance' : inquiry.status === 'on progress QA' ? 'Sedang dalam Quality Assurance' : inquiry.status === 'paid off' ? 'Sudah dibayar' : inquiry.status === 'ready for update' ? 'Siap untuk diupdate' : inquiry.status === 'pending' ? 'Masih dalam tahap pengajuan' : inquiry.status}.`;
     const message = `Halo ${namaToko},\n\n${biayaMsg}\n${statusMsg}\n\nTerima kasih telah menggunakan layanan kami.`;
     const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
@@ -148,6 +149,229 @@ const InquiryTable: React.FC = () => {
 
   const closePreview = () => {
     setPreviewAttachment(null);
+  };
+
+  const exportToPDF = (inquiry: Inquiry) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    let yPosition = 20;
+
+    // Helper function to parse HTML and render formatted text
+    const renderFormattedText = (htmlText: string, startX: number, startY: number, maxWidth: number) => {
+      let currentY = startY;
+      const lineHeight = 6;
+
+      // Create a temporary DOM element to parse HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlText;
+
+      // Function to process text nodes and elements
+      const processNode = (node: Node, indentLevel: number = 0) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const text = node.textContent?.trim();
+          if (text) {
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            const indent = indentLevel * 10;
+            const wrappedText = doc.splitTextToSize(text, maxWidth - indent);
+            doc.text(wrappedText, startX + indent, currentY);
+
+            // Calculate height for wrapped text
+            const textHeight = Array.isArray(wrappedText) ? wrappedText.length * lineHeight : lineHeight;
+            currentY += textHeight;
+          }
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          const element = node as Element;
+          const tagName = element.tagName.toLowerCase();
+
+          if (tagName === 'ul') {
+            // Process list items
+            const listItems = element.querySelectorAll('li');
+            listItems.forEach((li) => {
+              // Bullet point
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(10);
+              const indent = indentLevel * 10;
+              doc.text('•', startX + indent + 5, currentY);
+
+              // Process list item content
+              Array.from(li.childNodes).forEach(child => {
+                processNode(child, indentLevel + 1);
+              });
+            });
+          } else if (tagName === 'ol') {
+            // Process ordered list items
+            const listItems = element.querySelectorAll('li');
+            listItems.forEach((li, index) => {
+              // Numbered list
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(10);
+              const indent = indentLevel * 10;
+              doc.text(`${index + 1}.`, startX + indent + 5, currentY);
+
+              // Process list item content
+              Array.from(li.childNodes).forEach(child => {
+                processNode(child, indentLevel + 1);
+              });
+            });
+          } else if (tagName === 'li') {
+            // This shouldn't happen as we handle ul/ol above, but just in case
+            Array.from(element.childNodes).forEach(child => {
+              processNode(child, indentLevel);
+            });
+          } else if (tagName === 'p' || tagName === 'div' || tagName === 'br') {
+            // Paragraph or line break
+            if (tagName === 'br') {
+              currentY += lineHeight;
+            } else {
+              Array.from(element.childNodes).forEach(child => {
+                processNode(child, indentLevel);
+              });
+              // Add extra space after paragraphs
+              if (tagName === 'p') {
+                currentY += lineHeight * 0.5;
+              }
+            }
+          } else {
+            // Other elements - just process their children
+            Array.from(element.childNodes).forEach(child => {
+              processNode(child, indentLevel);
+            });
+          }
+        }
+      };
+
+      // Process all child nodes of the HTML content
+      Array.from(tempDiv.childNodes).forEach(node => {
+        processNode(node, 0);
+      });
+
+      return currentY;
+    };
+
+    // Header Section
+    doc.setFillColor(41, 128, 185); // Blue header background
+    doc.rect(0, 0, pageWidth, 35, 'F');
+
+    // Company/Title
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('MONITORING INQUIRY SYSTEM', pageWidth / 2, 15, { align: 'center' });
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Detail Permintaan Inquiry', pageWidth / 2, 25, { align: 'center' });
+
+    // Reset text color
+    doc.setTextColor(0, 0, 0);
+    yPosition = 50;
+
+    // Inquiry Info Box
+    const boxHeight = (inquiry.fee && inquiry.fee > 0) ? 70 : 60;
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.5);
+    doc.rect(15, yPosition, pageWidth - 30, boxHeight);
+
+    // Title for info section
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('INFORMASI PERMINTAAN', 20, yPosition + 8);
+
+    // Line under title
+    doc.setLineWidth(0.3);
+    doc.line(20, yPosition + 12, pageWidth - 20, yPosition + 12);
+
+    // Left column - Labels with aligned colons
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    let leftY = yPosition + 20;
+    const labelX = 25;
+    const colonX = 85; // Fixed position for colons to align them
+    
+    // Draw labels and colons separately for perfect alignment
+    doc.text('Nama Toko', labelX, leftY);
+    doc.text(':', colonX, leftY);
+    
+    doc.text('No. WhatsApp', labelX, leftY + 8);
+    doc.text(':', colonX, leftY + 8);
+    
+    doc.text('Status', labelX, leftY + 16);
+    doc.text(':', colonX, leftY + 16);
+    
+    doc.text('Tipe', labelX, leftY + 24);
+    doc.text(':', colonX, leftY + 24);
+    
+    doc.text('Tanggal Dibuat', labelX, leftY + 32);
+    doc.text(':', colonX, leftY + 32);
+
+    // Right column values - aligned with colons
+    doc.setFont('helvetica', 'bold');
+    const valueX = 90; // Start values after colon position
+    doc.text(inquiry.nama_toko, valueX, leftY);
+    doc.text(inquiry.nomor_whatsapp_customer, valueX, leftY + 8);
+    doc.text(inquiry.status, valueX, leftY + 16);
+    doc.text(inquiry.type === 'berbayar' ? 'Berbayar' : 'Gratis', valueX, leftY + 24);
+    doc.text(new Date(inquiry.created_at).toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }), valueX, leftY + 32);
+
+    // Fee if applicable
+    if (inquiry.fee && inquiry.fee > 0) {
+      doc.setFont('helvetica', 'normal');
+      doc.text('Biaya', labelX, leftY + 40);
+      doc.text(':', colonX, leftY + 40);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(220, 20, 60); // Crimson red for price
+      doc.text(inquiry.fee.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }), valueX, leftY + 40);
+      doc.setTextColor(0, 0, 0);
+    }
+
+    yPosition += boxHeight + 15;
+
+    // Description Section
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.5);
+    doc.rect(15, yPosition, pageWidth - 30, 80); // Increased height for formatted content
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('DESKRIPSI PERMINTAAN', 20, yPosition + 8);
+
+    doc.setLineWidth(0.3);
+    doc.line(20, yPosition + 12, pageWidth - 20, yPosition + 12);
+
+    // Render formatted description with bullet points
+    renderFormattedText(inquiry.deskripsi, 25, yPosition + 20, pageWidth - 50);
+
+    yPosition += 95;
+
+    // Footer
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.3);
+    doc.line(15, pageHeight - 25, pageWidth - 15, pageHeight - 25);
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(100, 100, 100);
+    doc.text('Dokumen ini dihasilkan oleh Sistem Monitoring Inquiry', pageWidth / 2, pageHeight - 18, { align: 'center' });
+    doc.text(`Tanggal Export: ${new Date().toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    })} | Waktu: ${new Date().toLocaleTimeString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit'
+    })}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+    // Save PDF
+    const fileName = `Inquiry-${inquiry.nama_toko.replace(/[^a-zA-Z0-9]/g, '_')}-${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
   };
 
   // Pagination logic
@@ -422,17 +646,132 @@ const InquiryTable: React.FC = () => {
           {/* Overlay */}
           <div className="fixed inset-0 bg-black bg-opacity-10" onClick={() => setIsDeskripsiModalOpen(false)} />
           {/* Centered Modal */}
-          <div className="relative bg-white rounded-2xl shadow-lg w-full max-w-2xl max-h-[90vh] flex flex-col border border-gray-200 overflow-hidden">
+          <div className="relative bg-white rounded-2xl shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col border border-gray-200 overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b rounded-t-2xl">
-              <h2 className="text-xl font-semibold text-gray-800">Detail Inquery</h2>
-              <button onClick={() => setIsDeskripsiModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                <X size={24} className="text-gray-500" />
-              </button>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-800">Detail Inquiry</h2>
+                <p className="text-sm text-gray-600 mt-1">{selectedInquiry.nama_toko}</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => exportToPDF(selectedInquiry)}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm"
+                  title="Export ke PDF"
+                >
+                  <Download size={16} />
+                  Export PDF
+                </button>
+                <button onClick={() => setIsDeskripsiModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                  <X size={24} className="text-gray-500" />
+                </button>
+              </div>
             </div>
-            <div className="p-6 overflow-y-auto flex justify-center">
-              <div className="text-base text-gray-800 max-w-prose w-full prose prose-ul:list-disc prose-li:ml-0 prose-li:pl-0 prose-li:marker:text-gray-800" style={{ wordBreak: 'break-word' }}
-                dangerouslySetInnerHTML={{ __html: selectedInquiry.deskripsi }}
-              />
+            <div className="p-6 overflow-y-auto">
+              {/* Inquiry Details */}
+              <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                <h3 className="font-semibold text-gray-800 mb-4 text-lg">Informasi Inquiry</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-600">Nama Toko:</span>
+                    <p className="text-gray-800 mt-1">{selectedInquiry.nama_toko}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">No. WhatsApp:</span>
+                    <p className="text-gray-800 mt-1">{selectedInquiry.nomor_whatsapp_customer}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Status:</span>
+                    <p className="text-gray-800 mt-1">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(selectedInquiry.status)}`}>
+                        {selectedInquiry.status}
+                      </span>
+                    </p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Tipe:</span>
+                    <p className="text-gray-800 mt-1">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getTypeColor(selectedInquiry.type)}`}>
+                        {selectedInquiry.type === 'berbayar' ? 'Berbayar' : 'Gratis'}
+                      </span>
+                    </p>
+                  </div>
+                  {selectedInquiry.fee && selectedInquiry.fee > 0 && (
+                    <div>
+                      <span className="font-medium text-gray-600">Biaya:</span>
+                      <p className="text-gray-800 mt-1 font-semibold">
+                        {selectedInquiry.fee.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <span className="font-medium text-gray-600">Tanggal Dibuat:</span>
+                    <p className="text-gray-800 mt-1">
+                      {new Date(selectedInquiry.created_at).toLocaleDateString('id-ID', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                  {selectedInquiry.created_by && (
+                    <div>
+                      <span className="font-medium text-gray-600">Dibuat Oleh:</span>
+                      <p className="text-gray-800 mt-1">{selectedInquiry.created_by}</p>
+                    </div>
+                  )}
+                  {selectedInquiry.divisi && (
+                    <div>
+                      <span className="font-medium text-gray-600">Divisi:</span>
+                      <p className="text-gray-800 mt-1">
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getDivisiColor(selectedInquiry.divisi)}`}>
+                          {selectedInquiry.divisi}
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                  {selectedInquiry.divisi_notes && (
+                    <div className="md:col-span-2">
+                      <span className="font-medium text-gray-600">Catatan Divisi:</span>
+                      <p className="text-gray-800 mt-1">{selectedInquiry.divisi_notes}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-3 text-lg">Deskripsi Permintaan</h3>
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <div 
+                    className="text-gray-800 prose prose-sm max-w-none" 
+                    style={{ wordBreak: 'break-word' }}
+                    dangerouslySetInnerHTML={{ __html: selectedInquiry.deskripsi }}
+                  />
+                </div>
+              </div>
+
+              {/* Attachments */}
+              {selectedInquiry.attachments && selectedInquiry.attachments.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="font-semibold text-gray-800 mb-3 text-lg">Lampiran</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedInquiry.attachments.map((attachment, index) => (
+                      <a
+                        key={index}
+                        href={attachment.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm"
+                      >
+                        <FileText size={16} />
+                        {attachment.name}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -597,7 +936,7 @@ const InquiryTable: React.FC = () => {
                               className={`w-full text-left px-4 py-2 text-sm font-medium rounded-b-xl transition-colors ${inquiry.status === 'batal' || inquiry.status === 'selesai' ? 'opacity-50 cursor-not-allowed bg-gray-100 text-gray-400' : 'text-gray-700 hover:bg-green-50 hover:text-green-700'}`}
                               disabled={inquiry.status === 'batal' || inquiry.status === 'selesai'}
                             >
-                              Selesai Inquiry
+                              Selesai
                             </button>
                           </>
                         )}

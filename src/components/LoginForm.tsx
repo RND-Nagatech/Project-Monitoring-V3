@@ -13,15 +13,20 @@ const LoginForm: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useApp();
 
-  // Load saved credentials from local storage on component mount
+  // Load saved credentials from local storage on component mount (auto-fill only)
   React.useEffect(() => {
     const savedUserId = localStorage.getItem('userId');
     const savedPassword = localStorage.getItem('password');
+    const savedRememberMe = localStorage.getItem('rememberMe') === 'true';
+
+    // Auto-fill form if credentials exist
     if (savedUserId && savedPassword) {
       setUserId(savedUserId);
       setPassword(savedPassword);
-      setRememberMe(true);
     }
+
+    // Only check remember me checkbox if it was explicitly saved as true
+    setRememberMe(savedRememberMe);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,13 +72,15 @@ const LoginForm: React.FC = () => {
         // Always save user data for session persistence
         login(user);
         
-        // Save credentials for auto-fill only if remember me is checked
+        // Handle remember me functionality
         if (rememberMe) {
           localStorage.setItem('userId', userId);
           localStorage.setItem('password', password);
+          localStorage.setItem('rememberMe', 'true');
         } else {
           localStorage.removeItem('userId');
           localStorage.removeItem('password');
+          localStorage.removeItem('rememberMe');
         }
       } else {
         setError('Password salah');
