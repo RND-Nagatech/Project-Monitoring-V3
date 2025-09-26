@@ -85,7 +85,7 @@ const LoginForm: React.FC = () => {
       } else {
         setError('Password salah');
       }
-    } catch (error) {
+    } catch {
       setError('Terjadi kesalahan saat login');
     } finally {
       setIsLoading(false);
@@ -93,13 +93,13 @@ const LoginForm: React.FC = () => {
   };
 
   return (
-    <div className="h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+    <div className="h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100 flex items-center justify-center">
       <div className="flex w-full max-w-4xl bg-white rounded-2xl shadow-lg overflow-hidden">
         {/* Left side - Illustration */}
-        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-400 items-center justify-center relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-400/90 via-purple-500/90 to-pink-400/90"></div>
+        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-600 via-slate-700 to-slate-800 items-center justify-center relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-600/90 via-slate-700/90 to-slate-800/90"></div>
           <div className="relative z-10 text-white text-center p-8">
-            <div className="w-24 h-24 bg-white/20 rounded-full mx-auto mb-6 flex items-center justify-center backdrop-blur-sm">
+            <div className="w-24 h-24 bg-slate-500 bg-opacity-30 rounded-full mx-auto mb-6 flex items-center justify-center backdrop-blur-sm">
               <User size={48} className="text-white" />
             </div>
             <h2 className="text-3xl font-light mb-3">Welcome Back</h2>
@@ -134,7 +134,7 @@ const LoginForm: React.FC = () => {
                 id="userId"
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-blue-400 focus:outline-none transition-all text-gray-900 placeholder-gray-400"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-slate-400 focus:outline-none transition-all text-gray-900 placeholder-gray-400"
                 placeholder="Enter your user ID"
                 disabled={isLoading}
               />
@@ -153,7 +153,7 @@ const LoginForm: React.FC = () => {
                   id="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-blue-400 focus:outline-none transition-all text-gray-900 placeholder-gray-400"
+                  className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-slate-400 focus:outline-none transition-all text-gray-900 placeholder-gray-400"
                   placeholder="Enter your password"
                   disabled={isLoading}
                 />
@@ -190,7 +190,7 @@ const LoginForm: React.FC = () => {
               className={`w-full font-medium py-3 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-md ${
                 isLoading
                   ? 'bg-gray-400 cursor-not-allowed opacity-75'
-                  : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 hover:scale-[1.02] transform'
+                  : 'bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 hover:scale-[1.02] transform'
               } text-white`}
             >
               {isLoading ? (

@@ -1,40 +1,56 @@
 import React, { useState, useEffect } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-import { Plus, X, Phone, Building2, CheckCircle, AlertCircle, MessageSquare } from 'lucide-react';
-import { useApp } from '../context/AppContext';
-import { Attachment } from '../types';
+import { Edit, X, CheckCircle, AlertCircle, Phone, Building2, MessageSquare } from 'lucide-react';
+import { Inquiry, User } from '../types';
 
-interface InquiryFormProps {
+interface EditInquiryModalProps {
   isOpen: boolean;
+  inquiry: Inquiry | null;
+  user: User | null;
   onClose: () => void;
+  onUpdate: (id: string, updates: Partial<Inquiry>) => void;
 }
 
-interface FormData {
-  nomor_whatsapp_customer: string;
-  nama_toko: string;
-  deskripsi: string;
-  attachments: File[];
-}
-
-interface ValidationErrors {
-  nomor_whatsapp_customer?: string;
-  nama_toko?: string;
-  deskripsi?: string;
-}
-
-const InquiryForm: React.FC<InquiryFormProps> = ({ isOpen, onClose }) => {
-  const { addInquiry, user } = useApp();
-  const [formData, setFormData] = useState<FormData>({
+const EditInquiryModal: React.FC<EditInquiryModalProps> = ({
+  isOpen,
+  inquiry,
+  user,
+  onClose,
+  onUpdate,
+}) => {
+  const [editFormData, setEditFormData] = useState({
     nomor_whatsapp_customer: '',
     nama_toko: '',
     deskripsi: '',
-    attachments: [],
   });
-  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [characterCount, setCharacterCount] = useState(0);
+  const [editValidationErrors, setEditValidationErrors] = useState<{
+    nomor_whatsapp_customer?: string;
+    nama_toko?: string;
+    deskripsi?: string;
+  }>({});
+  const [isEditing, setIsEditing] = useState(false);
+  const [editSuccess, setEditSuccess] = useState(false);
+  const [editCharacterCount, setEditCharacterCount] = useState(0);
+
+  // Update character count untuk deskripsi edit
+  useEffect(() => {
+    const text = editFormData.deskripsi.replace(/<[^>]*>/g, '');
+    setEditCharacterCount(text.length);
+  }, [editFormData.deskripsi]);
+
+  // Update form data when inquiry changes
+  useEffect(() => {
+    if (inquiry && isOpen) {
+      setEditFormData({
+        nomor_whatsapp_customer: inquiry.nomor_whatsapp_customer,
+        nama_toko: inquiry.nama_toko,
+        deskripsi: inquiry.deskripsi,
+      });
+      setEditValidationErrors({});
+      setEditSuccess(false);
+    }
+  }, [inquiry, isOpen]);
 
   // Format nomor WhatsApp Indonesia
   const formatWhatsAppNumber = (value: string) => {
@@ -55,106 +71,87 @@ const InquiryForm: React.FC<InquiryFormProps> = ({ isOpen, onClose }) => {
     if (!cleanNumber) return 'Nomor WhatsApp wajib diisi';
     if (cleanNumber.length < 10) return 'Nomor WhatsApp minimal 10 digit';
     if (cleanNumber.length > 13) return 'Nomor WhatsApp maksimal 13 digit';
-    if (!cleanNumber.startsWith('62')) return 'Format nomor WhatsApp tidak valid';
+    if (!cleanNumber.startsWith('628')) return 'Format nomor WhatsApp tidak valid (harus dimulai dengan +628)';
     return '';
   };
 
-  // Validasi form secara real-time
-  const validateForm = () => {
-    const errors: ValidationErrors = {};
+  // Validasi form edit
+  const validateEditForm = () => {
+    const errors: typeof editValidationErrors = {};
 
-    const whatsappError = validateWhatsAppNumber(formData.nomor_whatsapp_customer);
+    const whatsappError = validateWhatsAppNumber(editFormData.nomor_whatsapp_customer);
     if (whatsappError) errors.nomor_whatsapp_customer = whatsappError;
 
-    if (!formData.nama_toko.trim()) errors.nama_toko = 'Nama toko wajib diisi';
-    if (!formData.deskripsi.trim()) errors.deskripsi = 'Deskripsi wajib diisi';
+    if (!editFormData.nama_toko.trim()) errors.nama_toko = 'Nama toko wajib diisi';
 
-    setValidationErrors(errors);
+    // Strip HTML tags for description validation
+    const plainTextDescription = editFormData.deskripsi.replace(/<[^>]*>/g, '').trim();
+    if (!plainTextDescription) errors.deskripsi = 'Deskripsi wajib diisi';
+
+    setEditValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  // Update character count untuk deskripsi
-  useEffect(() => {
-    const text = formData.deskripsi.replace(/<[^>]*>/g, '');
-    setCharacterCount(text.length);
-  }, [formData.deskripsi]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) return;
-
-    setIsSubmitting(true);
-    try {
-      const formattedAttachments: Attachment[] = formData.attachments.map((file, index) => {
-        const fileType = file.type.startsWith('image/') ? 'image' : 'pdf';
-        return {
-          id: `${Date.now()}-${index}`,
-          url: URL.createObjectURL(file),
-          name: file.name,
-          type: fileType,
-        };
-      });
-
-      addInquiry({
-        ...formData,
-        attachments: formattedAttachments,
-        status: 'pending',
-        divisi: user?.role || '',
-        created_by: user?.name || '',
-      });
-
-      setSubmitSuccess(true);
-      setTimeout(() => {
-        setFormData({
-          nomor_whatsapp_customer: '',
-          nama_toko: '',
-          deskripsi: '',
-          attachments: [],
-        });
-        setValidationErrors({});
-        setSubmitSuccess(false);
-        onClose();
-      }, 2000);
-
-    } catch (error) {
-      console.error('Error adding inquiry:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle edit form input changes
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
 
     if (name === 'nomor_whatsapp_customer') {
       const formatted = formatWhatsAppNumber(value);
-      setFormData(prev => ({ ...prev, [name]: formatted }));
+      setEditFormData(prev => ({ ...prev, [name]: formatted }));
 
       // Clear validation error saat user mulai mengetik
-      if (validationErrors.nomor_whatsapp_customer) {
-        setValidationErrors(prev => ({ ...prev, nomor_whatsapp_customer: undefined }));
+      if (editValidationErrors.nomor_whatsapp_customer) {
+        setEditValidationErrors(prev => ({ ...prev, nomor_whatsapp_customer: undefined }));
       }
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setEditFormData(prev => ({ ...prev, [name]: value }));
 
       // Clear validation error saat user mulai mengetik
-      if (validationErrors[name as keyof ValidationErrors]) {
-        setValidationErrors(prev => ({ ...prev, [name]: undefined }));
+      if (editValidationErrors[name as keyof typeof editValidationErrors]) {
+        setEditValidationErrors(prev => ({ ...prev, [name]: undefined }));
       }
     }
   };
 
-  const handleDeskripsiChange = (value: string) => {
-    setFormData(prev => ({ ...prev, deskripsi: value }));
+  const handleEditDeskripsiChange = (value: string) => {
+    setEditFormData(prev => ({ ...prev, deskripsi: value }));
 
     // Clear validation error saat user mulai mengetik
-    if (validationErrors.deskripsi) {
-      setValidationErrors(prev => ({ ...prev, deskripsi: undefined }));
+    if (editValidationErrors.deskripsi) {
+      setEditValidationErrors(prev => ({ ...prev, deskripsi: undefined }));
     }
   };
 
-  if (!isOpen) return null;
+  // Handle edit form submission
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateEditForm() || !inquiry) return;
+
+    setIsEditing(true);
+    try {
+      // Update inquiry through context
+      onUpdate(inquiry.id, {
+        ...editFormData,
+        edited_by: user?.name || '',
+        edited_at: new Date().toISOString(),
+      });
+
+      setEditSuccess(true);
+      setTimeout(() => {
+        setEditSuccess(false);
+        onClose();
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error updating inquiry:', error);
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  if (!isOpen || !inquiry) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -164,17 +161,17 @@ const InquiryForm: React.FC<InquiryFormProps> = ({ isOpen, onClose }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
-                <Plus className="w-6 h-6 text-white" />
+                <Edit className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white">Tambah Inquiry Baru</h2>
-                <p className="text-sm text-slate-100 mt-1">Buat permintaan inquiry untuk customer baru</p>
+                <h2 className="text-xl font-bold text-white">Edit Inquiry</h2>
+                <p className="text-sm text-slate-100 mt-1">Perbarui informasi inquiry customer</p>
               </div>
             </div>
             <button
               onClick={onClose}
               className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-all duration-200"
-              disabled={isSubmitting}
+              disabled={isEditing}
             >
               <X size={20} className="text-white" />
             </button>
@@ -182,105 +179,105 @@ const InquiryForm: React.FC<InquiryFormProps> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Success Message */}
-        {submitSuccess && (
+        {editSuccess && (
           <div className="mx-6 mt-4 bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
             <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium text-green-800">Inquiry berhasil ditambahkan!</p>
-              <p className="text-xs text-green-600 mt-1">Form akan ditutup secara otomatis...</p>
+              <p className="text-sm font-medium text-green-800">Inquiry berhasil diperbarui!</p>
+              <p className="text-xs text-green-600 mt-1">Modal akan ditutup secara otomatis...</p>
             </div>
           </div>
         )}
 
         <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <form onSubmit={handleEditSubmit} className="p-6 space-y-6">
             {/* Nomor WhatsApp Field */}
             <div>
-              <label htmlFor="nomor_whatsapp_customer" className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
+              <label htmlFor="edit_nomor_whatsapp_customer" className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
                 <Phone className="w-4 h-4 text-slate-600" />
                 Nomor WhatsApp Customer *
               </label>
               <div className="relative">
                 <input
                   type="tel"
-                  id="nomor_whatsapp_customer"
+                  id="edit_nomor_whatsapp_customer"
                   name="nomor_whatsapp_customer"
-                  value={formData.nomor_whatsapp_customer}
-                  onChange={handleInputChange}
+                  value={editFormData.nomor_whatsapp_customer}
+                  onChange={handleEditInputChange}
                   className={`w-full pl-4 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all bg-white shadow-sm ${
-                    validationErrors.nomor_whatsapp_customer
+                    editValidationErrors.nomor_whatsapp_customer
                       ? 'border-red-300 focus:ring-red-500'
                       : 'border-gray-300 hover:border-gray-400'
                   }`}
                   placeholder="+6281234567890"
                   required
-                  disabled={isSubmitting}
+                  disabled={isEditing}
                 />
-                {validationErrors.nomor_whatsapp_customer && (
+                {editValidationErrors.nomor_whatsapp_customer && (
                   <div className="absolute right-3 top-3 flex items-center">
                     <AlertCircle className="w-4 h-4 text-red-500" />
                   </div>
                 )}
               </div>
-              {validationErrors.nomor_whatsapp_customer ? (
+              {editValidationErrors.nomor_whatsapp_customer ? (
                 <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
-                  {validationErrors.nomor_whatsapp_customer}
+                  {editValidationErrors.nomor_whatsapp_customer}
                 </p>
               ) : (
-                <p className="mt-1 text-xs text-gray-500">Format: +62xxxxxxxxxx (minimal 10 digit)</p>
+                <p className="mt-1 text-xs text-gray-500">Format: +628xxxxxxxxx (dimulai dengan 08, minimal 10 digit setelah +62)</p>
               )}
             </div>
 
             {/* Nama Toko Field */}
             <div>
-              <label htmlFor="nama_toko" className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
+              <label htmlFor="edit_nama_toko" className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-slate-600" />
                 Nama Toko *
               </label>
               <div className="relative">
                 <input
                   type="text"
-                  id="nama_toko"
+                  id="edit_nama_toko"
                   name="nama_toko"
-                  value={formData.nama_toko}
-                  onChange={handleInputChange}
+                  value={editFormData.nama_toko}
+                  onChange={handleEditInputChange}
                   className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all bg-white shadow-sm ${
-                    validationErrors.nama_toko
+                    editValidationErrors.nama_toko
                       ? 'border-red-300 focus:ring-red-500'
                       : 'border-gray-300 hover:border-gray-400'
                   }`}
                   placeholder="Masukkan nama toko customer"
                   required
-                  disabled={isSubmitting}
+                  disabled={isEditing}
                 />
-                {validationErrors.nama_toko && (
+                {editValidationErrors.nama_toko && (
                   <div className="absolute right-3 top-3 flex items-center">
                     <AlertCircle className="w-4 h-4 text-red-500" />
                   </div>
                 )}
               </div>
-              {validationErrors.nama_toko && (
+              {editValidationErrors.nama_toko && (
                 <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
-                  {validationErrors.nama_toko}
+                  {editValidationErrors.nama_toko}
                 </p>
               )}
             </div>
 
             {/* Deskripsi Field */}
             <div>
-              <label htmlFor="deskripsi" className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
+              <label htmlFor="edit_deskripsi" className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-slate-600" />
                 Deskripsi Permintaan *
               </label>
               <div className={`border rounded-lg overflow-hidden ${
-                validationErrors.deskripsi ? 'border-red-300' : 'border-gray-300'
+                editValidationErrors.deskripsi ? 'border-red-300' : 'border-gray-300'
               }`}>
                 <ReactQuill
-                  id="deskripsi"
-                  value={formData.deskripsi}
-                  onChange={handleDeskripsiChange}
+                  id="edit_deskripsi"
+                  value={editFormData.deskripsi}
+                  onChange={handleEditDeskripsiChange}
                   theme="snow"
                   modules={{
                     toolbar: [
@@ -292,22 +289,22 @@ const InquiryForm: React.FC<InquiryFormProps> = ({ isOpen, onClose }) => {
                   }}
                   className="bg-white"
                   placeholder="Jelaskan secara detail kebutuhan atau permintaan customer..."
-                  readOnly={isSubmitting}
+                  readOnly={isEditing}
                 />
               </div>
               <div className="flex justify-between items-center mt-2">
-                {validationErrors.deskripsi ? (
+                {editValidationErrors.deskripsi ? (
                   <p className="text-sm text-red-600 flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />
-                    {validationErrors.deskripsi}
+                    {editValidationErrors.deskripsi}
                   </p>
                 ) : (
                   <p className="text-xs text-gray-500">Gunakan rich text untuk format yang lebih baik</p>
                 )}
                 <span className={`text-xs font-medium ${
-                  characterCount > 1000 ? 'text-red-600' : characterCount > 500 ? 'text-yellow-600' : 'text-gray-500'
+                  editCharacterCount > 1000 ? 'text-red-600' : editCharacterCount > 500 ? 'text-yellow-600' : 'text-gray-500'
                 }`}>
-                  {characterCount}/1000 karakter
+                  {editCharacterCount}/1000 karakter
                 </span>
               </div>
             </div>
@@ -318,29 +315,29 @@ const InquiryForm: React.FC<InquiryFormProps> = ({ isOpen, onClose }) => {
                 type="button"
                 onClick={onClose}
                 className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
-                disabled={isSubmitting}
+                disabled={isEditing}
               >
                 Batal
               </button>
               <button
                 type="submit"
                 className="flex-1 px-6 py-3 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white rounded-lg transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isSubmitting || submitSuccess}
+                disabled={isEditing || editSuccess}
               >
-                {isSubmitting ? (
+                {isEditing ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
                     Menyimpan...
                   </>
-                ) : submitSuccess ? (
+                ) : editSuccess ? (
                   <>
                     <CheckCircle className="w-5 h-5" />
                     Berhasil!
                   </>
                 ) : (
                   <>
-                    <Plus size={20} />
-                    Simpan Inquiry
+                    <Edit size={20} />
+                    Update Inquiry
                   </>
                 )}
               </button>
@@ -352,4 +349,4 @@ const InquiryForm: React.FC<InquiryFormProps> = ({ isOpen, onClose }) => {
   );
 };
 
-export default InquiryForm;
+export default EditInquiryModal;

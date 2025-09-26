@@ -33,7 +33,7 @@ export const dummyInquiries: Inquiry[] = [
   // Inquiry 1 - Status: Pending
   {
     id: '1',
-    nomor_whatsapp_customer: '081234567890',
+    nomor_whatsapp_customer: '+6281234567890',
     nama_toko: 'Toko Berkah Jaya',
     deskripsi: '<p>Membutuhkan sistem kasir untuk toko kelontong dengan fitur:</p><ul><li>Input barang dan harga</li><li>Cetak struk pembayaran</li><li>Laporan harian penjualan</li></ul>',
     status: 'pending',
@@ -48,7 +48,7 @@ export const dummyInquiries: Inquiry[] = [
   // Inquiry 2 - Status: Progress, Type: Berbayar
   {
     id: '2',
-    nomor_whatsapp_customer: '081987654321',
+    nomor_whatsapp_customer: '+6281987654321',
     nama_toko: 'Warung Makan Sederhana',
     deskripsi: '<p>Ingin aplikasi mobile untuk menu dan pemesanan online dengan fitur:</p><ul><li>Tampilan menu makanan</li><li>Keranjang belanja</li><li>Pembayaran online</li><li>Notifikasi pesanan</li></ul>',
     status: 'progress',
@@ -73,7 +73,7 @@ export const dummyInquiries: Inquiry[] = [
   // Inquiry 3 - Status: Selesai, Type: Berbayar
   {
     id: '3',
-    nomor_whatsapp_customer: '081555666777',
+    nomor_whatsapp_customer: '+6281555666777',
     nama_toko: 'Fashion Store Modern',
     deskripsi: '<p>Website e-commerce dengan fitur pembayaran online untuk toko fashion:</p><ul><li>Katalog produk dengan kategori</li><li>Sistem pembayaran terintegrasi</li><li>Dashboard admin untuk manajemen produk</li><li>Responsive design</li></ul>',
     status: 'selesai',
@@ -106,7 +106,7 @@ export const dummyInquiries: Inquiry[] = [
   // Inquiry 4 - Status: Pending, Type: Gratis
   {
     id: '4',
-    nomor_whatsapp_customer: '081333444555',
+    nomor_whatsapp_customer: '+6281333444555',
     nama_toko: 'Bengkel Motor Jaya',
     deskripsi: '<p>Membutuhkan sistem sederhana untuk pencatatan service motor:</p><ul><li>Data pelanggan dan motor</li><li>Riwayat service</li><li>Reminder service berkala</li></ul><p>Project ini untuk usaha kecil dengan budget terbatas.</p>',
     status: 'pending',
@@ -120,7 +120,7 @@ export const dummyInquiries: Inquiry[] = [
   // Inquiry 5 - Status: Progress, Type: Gratis
   {
     id: '5',
-    nomor_whatsapp_customer: '081777888999',
+    nomor_whatsapp_customer: '+6281777888999',
     nama_toko: 'Perpustakaan Desa Makmur',
     deskripsi: '<p>Aplikasi manajemen perpustakaan sederhana untuk perpustakaan desa:</p><ul><li>Database buku dan anggota</li><li>Sistem peminjaman dan pengembalian</li><li>Laporan bulanan</li></ul><p>Ini adalah project CSR untuk membantu perpustakaan desa.</p>',
     status: 'progress',
@@ -137,7 +137,7 @@ export const dummyInquiries: Inquiry[] = [
   // Inquiry 6 - Status: On Progress QA
   {
     id: '6',
-    nomor_whatsapp_customer: '081999123456',
+    nomor_whatsapp_customer: '+6281999123456',
     nama_toko: 'Warung Makan Bu Sari',
     deskripsi: '<p>Sistem order makanan online untuk warung makan:</p><ul><li>Menu digital dengan foto makanan</li><li>Sistem order dan pembayaran</li><li>Notifikasi WhatsApp otomatis</li></ul><p>Target selesai minggu depan untuk soft opening.</p>',
     status: 'on progress QA',

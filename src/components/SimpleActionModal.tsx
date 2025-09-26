@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Upload, CheckCircle, XCircle, FileText } from 'lucide-react';
+import { X, Upload, CheckCircle, XCircle, FileText, Settings, Play } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Inquiry, Attachment } from '../types';
 
@@ -176,7 +176,7 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
                 <select
                   value={formData.type}
                   onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-gray-700 text-base font-medium transition-all duration-150 appearance-none cursor-pointer shadow-sm"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-slate-400 focus:border-slate-400 bg-white text-gray-700 text-base font-medium transition-all duration-150 appearance-none cursor-pointer shadow-sm"
                   style={{ minHeight: '44px', WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
                   required
                 >
@@ -202,7 +202,7 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
                     const rawValue = parseNumber(e.target.value);
                     setFormData(prev => ({ ...prev, fee: rawValue }));
                   }}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                   placeholder="0"
                   required={formData.type === 'berbayar'}
                   style={{ MozAppearance: 'textfield' }}
@@ -221,8 +221,8 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
                 onDragLeave={handleDragLeave}
                 className={`w-full p-6 border-2 border-dashed rounded-lg transition-colors cursor-pointer ${
                   isDragOver 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+                    ? 'border-slate-500 bg-slate-50' 
+                    : 'border-gray-300 hover:border-slate-400 hover:bg-gray-50'
                 }`}
                 onClick={() => produksiFileInputRef.current?.click()}
               >
@@ -230,7 +230,7 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
                   <Upload className="mx-auto h-12 w-12 text-gray-400" />
                   <div className="mt-2">
                     <p className="text-sm text-gray-600">
-                      <span className="font-medium text-blue-600 hover:text-blue-500">
+                      <span className="font-medium text-slate-600 hover:text-slate-500">
                         Click to upload
                       </span>{' '}
                       or drag and drop
@@ -256,7 +256,7 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
                       // Tentukan tipe file dan ukuran
                       const isAttachment = 'id' in file && 'url' in file;
                       const fileType = isAttachment ? file.type : (file.type.startsWith('image/') ? 'image' : 'pdf');
-                      const fileSize = isAttachment ? (file as any).size || 0 : file.size;
+                      const fileSize = isAttachment ? (file as Attachment & { size?: number }).size || 0 : file.size;
                       const fileUrl = isAttachment ? file.url : URL.createObjectURL(file);
 
                       return (
@@ -331,8 +331,8 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
               onDragLeave={handleDragLeave}
               className={`w-full p-6 border-2 border-dashed rounded-lg transition-colors cursor-pointer ${
                 isDragOver 
-                  ? 'border-orange-500 bg-orange-50' 
-                  : 'border-gray-300 hover:border-orange-400 hover:bg-gray-50'
+                  ? 'border-slate-500 bg-slate-50' 
+                  : 'border-gray-300 hover:border-slate-400 hover:bg-gray-50'
               }`}
               onClick={() => financeFileInputRef.current?.click()}
             >
@@ -340,7 +340,7 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
                 <Upload className="mx-auto h-12 w-12 text-gray-400" />
                 <div className="mt-2">
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium text-orange-600 hover:text-orange-500">
+                    <span className="font-medium text-slate-600 hover:text-slate-500">
                       Click to upload
                     </span>{' '}
                     or drag and drop
@@ -366,7 +366,7 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
                     // Tentukan tipe file dan ukuran
                     const isAttachment = 'id' in file && 'url' in file;
                     const fileType = isAttachment ? file.type : (file.type.startsWith('image/') ? 'image' : 'pdf');
-                    const fileSize = isAttachment ? (file as any).size || 0 : file.size;
+                    const fileSize = isAttachment ? (file as Attachment & { size?: number }).size || 0 : file.size;
                     const fileUrl = isAttachment ? file.url : URL.createObjectURL(file);
 
                     return (
@@ -399,7 +399,7 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
                           </div>
                           <div className="flex-1 min-w-0">
                             <p
-                              className={`text-sm font-medium truncate ${fileType === 'pdf' ? 'text-blue-600 hover:text-blue-800 cursor-pointer hover:underline' : 'text-gray-900'}`}
+                              className={`text-sm font-medium truncate ${fileType === 'pdf' ? 'text-slate-600 hover:text-slate-800 cursor-pointer hover:underline' : 'text-gray-900'}`}
                               onClick={fileType === 'pdf' ? () => window.open(fileUrl, '_blank') : undefined}
                               title={fileType === 'pdf' ? 'Klik untuk melihat PDF' : undefined}
                             >
@@ -444,6 +444,24 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
     }
   };
 
+  const getModalIcon = () => {
+    switch (actionType) {
+      case 'proses': return Play;
+      case 'selesai': return CheckCircle;
+      case 'batal': return XCircle;
+      default: return Settings;
+    }
+  };
+
+  const getActionTitle = () => {
+    switch (actionType) {
+      case 'proses': return 'Proses Inquiry';
+      case 'selesai': return 'Selesai Inquiry';
+      case 'batal': return 'Batalkan Inquiry';
+      default: return 'Kelola Inquiry';
+    }
+  };
+
   const getModalTitle = () => {
     switch (userRole) {
       case 'produksi': return 'Update Produksi';
@@ -464,16 +482,6 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
     }
   };
 
-  const getSubmitButtonColor = () => {
-    switch (userRole) {
-      case 'produksi': return 'bg-blue-600 hover:bg-blue-700';
-      case 'qc': return actionType === 'proses' ? 'bg-blue-600 hover:bg-blue-700' : actionType === 'selesai' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700';
-      case 'finance': return 'bg-orange-600 hover:bg-orange-700';
-      case 'helpdesk': return actionType === 'selesai' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700';
-      default: return 'bg-blue-600 hover:bg-blue-700';
-    }
-  };
-
   const getSubmitIcon = () => {
     switch (userRole) {
       case 'helpdesk': return actionType === 'selesai' ? <CheckCircle size={20} /> : <XCircle size={20} />;
@@ -482,22 +490,31 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black bg-opacity-30 transition-opacity" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
-          <h2 className="text-xl font-semibold text-gray-800">
-            {getModalTitle()}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <X size={20} className="text-gray-500" />
-          </button>
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header dengan Gradient */}
+        <div className="bg-gradient-to-r from-slate-600 to-slate-700 rounded-t-2xl p-6 border-b border-slate-500">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+                {React.createElement(getModalIcon(), { className: "w-6 h-6 text-white" })}
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">{getActionTitle()}</h2>
+                <p className="text-sm text-slate-100 mt-1">{getModalTitle()}</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-all duration-200"
+              disabled={isSubmitting}
+            >
+              <X size={20} className="text-white" />
+            </button>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="overflow-y-auto max-h-[calc(90vh-200px)]">
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Inquiry Info */}
           <div className="bg-gray-50 p-4 rounded-lg">
@@ -565,28 +582,31 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
               value={formData.notes}
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               rows={4}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent resize-none"
               placeholder="Tambahkan catatan..."
             />
           </div>
 
           {/* Submit Buttons */}
-          <div className="flex gap-4 pt-4">
+          <div className="flex gap-4 pt-6 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
               disabled={isSubmitting}
             >
               Batal
             </button>
             <button
               type="submit"
-              className={`flex-1 px-6 py-3 ${getSubmitButtonColor()} text-white rounded-lg transition-colors flex items-center justify-center gap-2`}
+              className={`flex-1 px-6 py-3 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white rounded-lg transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-lg hover:shadow-xl`}
               disabled={isSubmitting}
             >
               {isSubmitting ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                  Memproses...
+                </>
               ) : (
                 <>
                   {getSubmitIcon()}

@@ -1,6 +1,6 @@
-# 📋 Sistem Monitoring Inquiry
+# 📋 Project Monitoring V3
 
-Sistem manajemen inquiry berbasis web untuk perusahaan yang mengelola permintaan pelanggan dengan workflow multi-role dan tracking status yang komprehensif.
+Sistem manajemen project inquiry berbasis web untuk perusahaan yang mengelola permintaan pelanggan dengan workflow multi-role dan tracking status yang komprehensif.
 
 ## 🎯 **Overview**
 
@@ -13,18 +13,21 @@ Aplikasi ini dirancang untuk mengelola proses inquiry dari awal hingga selesai d
 ## 🛠️ **Tech Stack**
 
 ### Frontend
-- **React 18** dengan TypeScript
-- **Tailwind CSS** untuk styling
-- **React Quill** untuk rich text editor
-- **Lucide React** untuk icons
-- **Vite** sebagai build tool
+- **React 18** dengan TypeScript untuk type safety
+- **Tailwind CSS** untuk utility-first styling
+- **React Quill** untuk rich text editing
+- **Lucide React** untuk modern icon library
+- **Vite** sebagai fast build tool dan dev server
+- **html2canvas & jsPDF** untuk export functionality
+- **ESLint** untuk code quality dan consistency
 
 ### Backend
-- **Node.js** dengan Express.js
-- **MongoDB** dengan Mongoose ODM
-- **JWT** untuk authentication
-- **Multer** untuk file upload
+- **Node.js** dengan Express.js framework
+- **MongoDB** dengan Mongoose ODM untuk data modeling
+- **JWT** untuk secure authentication
+- **Multer** untuk file upload handling
 - **bcryptjs** untuk password hashing
+- **CORS** untuk cross-origin resource sharing
 
 ## ✨ **Fitur Utama**
 
@@ -34,17 +37,18 @@ Aplikasi ini dirancang untuk mengelola proses inquiry dari awal hingga selesai d
 - Password hashing dengan bcrypt
 
 ### 📝 **Inquiry Management**
-- **Rich Text Editor** untuk deskripsi inquiry
-- **File Upload** dengan drag & drop
-- **Status Tracking** dengan 9 status berbeda
-- **Search & Filter** berdasarkan berbagai kriteria
-- **Pagination** untuk handling data besar
+- **Rich Text Editor** untuk deskripsi inquiry menggunakan React Quill
+- **File Upload** dengan drag & drop support (PDF, images hingga 10MB)
+- **Status Tracking** dengan 9 status berbeda dan visual indicators
+- **Search & Filter** berdasarkan nama toko, nomor HP, deskripsi, dan status
+- **Pagination** untuk handling data besar dengan customizable rows per page
+- **Modal Components**: Dedicated modals untuk Detail, Edit, File Preview, dan Action handling
 
 ### 👥 **Multi-Role Workflow**
-- **Helpdesk**: Create, edit, delete inquiry
-- **Produksi**: Process inquiry, update status
-- **QC**: Quality control dengan 2 level (on going QA, on progress QA)
-- **Finance**: Payment management
+- **Helpdesk**: Create, edit, delete inquiry dengan WhatsApp follow-up
+- **Produksi**: Process inquiry, set type (berbayar/gratis), upload attachments
+- **QC**: Quality control dengan multiple status levels dan action types
+- **Finance**: Payment management dengan bukti pembayaran upload
 
 ### 📊 **Dashboard & Reporting**
 - **Real-time Statistics** untuk semua status
@@ -52,9 +56,18 @@ Aplikasi ini dirancang untuk mengelola proses inquiry dari awal hingga selesai d
 - **Status Distribution** tracking
 
 ### 📎 **File Management**
-- Upload multiple files (PDF, images, documents)
-- Secure file storage
-- File preview capabilities
+- Upload multiple files (PDF, images, documents) hingga 10MB per file
+- Secure file storage dengan type validation
+- File preview capabilities dengan modal dedicated
+- Drag & drop interface dengan visual feedback
+- File management dalam inquiry workflow
+
+### 🎯 **Modal System**
+- **DetailInquiryModal**: Comprehensive inquiry details dengan export functionality
+- **EditInquiryModal**: Rich text editing dengan React Quill integration
+- **FilePreviewModal**: File preview dengan support PDF dan image
+- **SimpleActionModal**: Role-based action handling dengan dynamic UI
+- Consistent styling dengan gradient headers dan backdrop blur
 
 ## 🚀 **Quick Start**
 
@@ -68,7 +81,7 @@ Aplikasi ini dirancang untuk mengelola proses inquiry dari awal hingga selesai d
 1. **Clone repository:**
    ```bash
    git clone <repository-url>
-   cd inquiry-monitoring-system
+   cd Project-Monitoring-V3
    ```
 
 2. **Setup Backend:**
@@ -89,10 +102,10 @@ Aplikasi ini dirancang untuk mengelola proses inquiry dari awal hingga selesai d
    ```env
    PORT=5000
    NODE_ENV=development
-   MONGODB_URI=mongodb://localhost:27017/inquiry_monitoring
+   MONGODB_URI=mongodb://localhost:27017/project_monitoring_v3
    JWT_SECRET=your_super_secret_jwt_key_here
    JWT_EXPIRE=7d
-   MAX_FILE_SIZE=5000000
+   MAX_FILE_SIZE=10000000
    FILE_UPLOAD_PATH=./uploads
    ```
 
@@ -264,41 +277,69 @@ Authorization: Bearer <jwt_token>
 ## 🎨 **UI/UX Features**
 
 ### Responsive Design
-- Mobile-friendly interface
-- Adaptive layouts untuk berbagai screen size
-- Touch-friendly interactions
+- Mobile-friendly interface dengan adaptive layouts
+- Touch-friendly interactions untuk mobile devices
+- Custom scrollbars dan smooth scrolling
 
 ### Modern UI Components
-- Clean card-based layouts
-- Consistent color schemes per status
-- Smooth animations dan transitions
+- Clean card-based layouts dengan gradient headers
+- Consistent color schemes per status dan role
+- Smooth animations dan transitions menggunakan Tailwind CSS
 - Custom dropdowns tanpa native browser styling
+- Modal system dengan backdrop blur dan role-specific icons
 
 ### User Experience
-- Real-time form validation
-- Loading states dan error handling
-- Intuitive navigation
-- Contextual action menus
+- Real-time form validation dengan error handling
+- Loading states dan progress indicators
+- Intuitive navigation dengan contextual action menus
+- Drag & drop file upload dengan visual feedback
+- WhatsApp integration untuk customer follow-up
+- Table dengan combined columns (Nama Toko + No. HP)
 
 ## 🔧 **Development**
 
 ### Project Structure
 ```
-inquiry-monitoring-system/
+Project-Monitoring-V3/
 ├── backend/                    # Express.js API server
-│   ├── models/                # Mongoose schemas
-│   ├── routes/                # API endpoints
-│   ├── middleware/            # Auth middleware
-│   ├── uploads/               # File storage
-│   ├── server.js              # Main server
-│   └── package.json
+│   ├── middleware/
+│   │   └── auth.js            # Authentication middleware
+│   ├── models/
+│   │   ├── Inquiry.js         # Inquiry schema
+│   │   └── User.js            # User schema
+│   ├── routes/
+│   │   ├── auth.js            # Authentication routes
+│   │   ├── inquiries.js       # Inquiry CRUD routes
+│   │   └── upload.js          # File upload routes
+│   ├── uploads/               # File storage directory
+│   ├── package.json
+│   ├── seed.js                # Database seeding script
+│   └── server.js              # Main server file
 ├── src/                       # React frontend
-│   ├── components/            # React components
-│   ├── context/               # React context
-│   ├── data/                  # Dummy data
-│   ├── types/                 # TypeScript types
-│   └── main.tsx               # App entry point
+│   ├── components/
+│   │   ├── ActionModal.tsx    # Modal for role-based actions
+│   │   ├── Dashboard.tsx      # Main dashboard component
+│   │   ├── DetailInquiryModal.tsx # Inquiry detail modal
+│   │   ├── EditInquiryModal.tsx   # Edit inquiry modal
+│   │   ├── FilePreviewModal.tsx   # File preview modal
+│   │   ├── InquiryForm.tsx    # Inquiry creation form
+│   │   ├── InquiryTable.tsx   # Data table component
+│   │   └── LoginForm.tsx      # Authentication form
+│   ├── context/
+│   │   └── AppContext.tsx     # Global state management
+│   ├── data/
+│   │   └── dummy.ts           # Dummy data for development
+│   ├── types/
+│   │   └── index.ts           # TypeScript type definitions
+│   ├── App.tsx                # Main app component
+│   ├── index.css              # Global styles
+│   ├── main.tsx               # App entry point
+│   └── vite-env.d.ts          # Vite environment types
 ├── public/                    # Static assets
+├── eslint.config.js           # ESLint configuration
+├── tailwind.config.js         # Tailwind CSS configuration
+├── tsconfig.json              # TypeScript configuration
+├── vite.config.ts             # Vite build configuration
 ├── package.json               # Frontend dependencies
 └── README.md
 ```
@@ -307,14 +348,15 @@ inquiry-monitoring-system/
 
 **Frontend:**
 ```bash
-npm run dev      # Start development server
+npm run dev      # Start development server (Vite)
 npm run build    # Build for production
-npm run preview  # Preview production build
+npm run preview  # Preview production build locally
+npm run lint     # Run ESLint for code quality
 ```
 
 **Backend:**
 ```bash
-npm run dev      # Start with nodemon
+npm run dev      # Start with nodemon (development)
 npm start        # Start production server
 npm run seed     # Seed database with dummy data
 ```
@@ -344,14 +386,25 @@ VITE_API_URL=https://your-api-domain.com/api
 VITE_API_URL=https://your-api-domain.com/api
 ```
 
-## 🔒 **Security Features**
+## 🏗️ **Architecture Overview**
 
-- **JWT Authentication** dengan expiration
-- **Password Hashing** menggunakan bcrypt
-- **Input Validation** dengan express-validator
-- **File Upload Security** dengan type/size validation
-- **CORS Configuration** untuk cross-origin requests
-- **Role-based Access Control** untuk API endpoints
+### Component Structure
+- **Dashboard**: Main layout dengan statistics cards dan inquiry table
+- **InquiryTable**: Data table dengan search, filter, dan pagination
+- **Modal Components**: Dedicated modals untuk different functionalities
+- **Forms**: Login dan inquiry creation/editing forms
+- **Context**: Global state management untuk user dan inquiry data
+
+### State Management
+- React Context API untuk global state
+- Local component state untuk UI interactions
+- Real-time updates untuk inquiry status changes
+
+### Security Implementation
+- JWT-based authentication dengan role validation
+- Password hashing menggunakan bcrypt
+- Input sanitization dan validation
+- File upload security dengan type/size restrictions
 
 ## 📈 **Performance Optimizations**
 
@@ -399,4 +452,6 @@ Untuk pertanyaan atau support, silakan hubungi tim development atau buat issue d
 
 ---
 
-**Built with ❤️ for efficient inquiry management workflow**
+**Project Monitoring V3 - Built with ❤️ for efficient project inquiry management workflow**
+
+*Developed by RND-Nagatech Team*
