@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Upload, CheckCircle, XCircle, FileText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Inquiry, Attachment } from '../types';
@@ -12,7 +12,7 @@ interface ActionModalProps {
 }
 
 const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, userRole, actionType }) => {
-  const { updateInquiry, user } = useApp();
+  const { updateInquiry, updateInquiryStatus, user } = useApp();
   const [formData, setFormData] = useState<{
     type: string;
     fee: string;
@@ -26,19 +26,31 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
   const produksiFileInputRef = React.useRef<HTMLInputElement>(null);
   const financeFileInputRef = React.useRef<HTMLInputElement>(null);
+  const typeDropdownRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     if (inquiry) {
       setFormData({
         type: inquiry.type || '',
         fee: inquiry.fee?.toString() || '',
-        notes: userRole !== 'produksi' ? '' : (inquiry.divisi_notes || ''),
-        attachments: inquiry.attachments || [], // Pertahankan attachments yang sudah ada
+        notes: '', // Kosongkan, karena notes sekarang array
+        attachments: inquiry.attachments || [],
       });
     }
   }, [inquiry, userRole]);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (typeDropdownRef.current && !typeDropdownRef.current.contains(e.target as Node)) {
+        setIsTypeDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   if (!isOpen || !inquiry || !userRole) return null;
 
@@ -47,75 +59,155 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
     setIsSubmitting(true);
 
     try {
-      // Proses attachments untuk disimpan
-      const formattedAttachments: Attachment[] = formData.attachments.map((file, index) => {
-        // Jika sudah berupa Attachment (file yang sudah ada), gunakan langsung
-        if ('id' in file && 'url' in file && 'name' in file && 'type' in file) {
-          return file;
+        // Proses attachments untuk disimpan
+        const formattedAttachments: Attachment[] = formData.attachments.map((file, index) => {
+          if ('id' in file && 'url' in file && 'name' in file && 'type' in file && 'size' in file) {
+            return file;
+          }
+          // If File (from input), else Attachment
+          if (file instanceof File) {
+            const fileType = file.type.startsWith('image/') ? 'image' : 'pdf';
+            return {
+              id: `${Date.now()}-${index}`,
+              url: URL.createObjectURL(file),
+              name: file.name,
+              type: fileType,
+              size: file.size,
+            };
+          } else {
+            // fallback, should not happen, but ensure size exists
+            return {
+              ...file,
+              size: (file as any).size || 0,
+            };
+          }
+        });
+
+        // Tentukan default notes sesuai role dan action jika kosong
+        let defaultNotes = formData.notes;
+        if (!formData.notes.trim()) {
+          if (userRole === 'qc') {
+            if (actionType === 'proses') {
+              defaultNotes = 'Sedang diproses oleh QA';
+            } else if (actionType === 'selesai') {
+              defaultNotes = 'Telah diselesaikan oleh QA';
+            } else if (actionType === 'batal') {
+              defaultNotes = 'Telah dibatalkan oleh QA';
+            }
+          } else if (userRole === 'helpdesk') {
+            if (actionType === 'proses') {
+              defaultNotes = 'Sedang diproses oleh Helpdesk';
+            } else if (actionType === 'selesai') {
+              defaultNotes = 'Telah diselesaikan oleh Helpdesk';
+            } else if (actionType === 'batal') {
+              defaultNotes = 'Telah dibatalkan oleh Helpdesk';
+            }
+          } else if (userRole === 'finance') {
+            if (actionType === 'proses') {
+              defaultNotes = 'Sedang diproses oleh Finance';
+            } else if (actionType === 'selesai') {
+              defaultNotes = 'Telah diselesaikan oleh Finance';
+            } else if (actionType === 'batal') {
+              defaultNotes = 'Telah dibatalkan oleh Finance';
+            }
+          }
         }
 
-        // Jika file baru (File object), konversi menjadi Attachment
-        const fileType = file.type.startsWith('image/') ? 'image' : 'pdf';
-        return {
-          id: `${Date.now()}-${index}`,
-          url: URL.createObjectURL(file),
-          name: file.name,
-          type: fileType,
-        };
-      });
+        // Check if there are new files to upload
+        const hasNewFiles = formData.attachments.some(att => att instanceof File);
 
-      const updates: Partial<Inquiry> = {
-        divisi: userRole,
-        divisi_notes: formData.notes,
-        attachments: formattedAttachments, // Simpan semua attachments (lama + baru)
-      };
-
-      // Record who processed this step
-      if (user) {
-        switch (userRole) {
-          case 'produksi':
-            updates.produksi_by = user.name;
-            break;
-          case 'qc':
-            updates.qc_by = user.name;
-            break;
-          case 'finance':
-            updates.finance_by = user.name;
-            break;
-          case 'helpdesk':
-            updates.helpdesk_by = user.name;
-            break;
-        }
-      }
-
-      if (userRole === 'produksi') {
-        updates.type = formData.type as 'berbayar' | 'gratis';
-        if (formData.type === 'berbayar' && formData.fee) {
-          updates.fee = parseInt(formData.fee);
-        }
-        // Set status based on type: berbayar -> wait for payment, gratis -> progress
-        updates.status = formData.type === 'berbayar' ? 'wait for payment' : 'progress';
-      } else if (userRole === 'qc') {
-        if (actionType === 'proses') {
-          updates.status = 'on progress QA';
-        } else if (actionType === 'selesai') {
-          updates.status = 'ready for update';
+        let updateData: Partial<Inquiry> | FormData;
+        if (hasNewFiles) {
+          // Use FormData for file uploads
+          const formDataToSend = new FormData();
+          formData.attachments.forEach((att) => {
+            if (att instanceof File) {
+              formDataToSend.append('attachments', att);
+            }
+          });
+          // Append other data
+          formDataToSend.append('divisi', userRole);
+          if (defaultNotes && defaultNotes.trim()) {
+            formDataToSend.append('notes', JSON.stringify([{
+              content: defaultNotes,
+              created_by: user?.name || '',
+              created_at: new Date().toISOString(),
+            }]));
+          }
+          if (userRole === 'produksi') {
+            formDataToSend.append('type', formData.type);
+            if (formData.type === 'berbayar' && formData.fee) {
+              formDataToSend.append('fee', formData.fee);
+            }
+            formDataToSend.append('status', formData.type === 'berbayar' ? 'wait for payment' : 'progress');
+          } else if (userRole === 'qc') {
+            if (actionType === 'proses') {
+              formDataToSend.append('status', 'on progress QA');
+            } else if (actionType === 'selesai') {
+              formDataToSend.append('status', 'ready for update');
+            } else {
+              formDataToSend.append('status', 'batal');
+            }
+          } else if (userRole === 'finance') {
+            formDataToSend.append('status', 'paid off');
+          } else if (userRole === 'helpdesk') {
+            formDataToSend.append('status', actionType === 'selesai' ? 'selesai' : 'batal');
+          }
+          updateData = formDataToSend;
         } else {
-          updates.status = 'batal';
-        }
-      } else if (userRole === 'finance') {
-        updates.status = 'paid off';
-      } else if (userRole === 'helpdesk') {
-        updates.status = actionType === 'selesai' ? 'selesai' : 'batal';
-      }
+          // Use regular object for non-file updates
+          updateData = {
+            divisi: userRole,
+            attachments: formattedAttachments,
+            ...(defaultNotes && defaultNotes.trim()
+              ? { notes: [
+                  {
+                    content: defaultNotes,
+                    created_by: user?.name || '',
+                    created_at: new Date().toISOString(),
+                  }
+                ] }
+              : {})
+          };
 
-      updateInquiry(inquiry.id, updates);
-      onClose();
-    } catch (error) {
-      console.error('Error updating inquiry:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
+          if (userRole === 'produksi') {
+            updateData.type = formData.type as 'berbayar' | 'gratis';
+            if (formData.type === 'berbayar' && formData.fee) {
+              updateData.fee = parseInt(formData.fee);
+            }
+            updateData.status = formData.type === 'berbayar' ? 'wait for payment' : 'progress';
+          } else if (userRole === 'qc') {
+            if (actionType === 'proses') {
+              updateData.status = 'on progress QA';
+            } else if (actionType === 'selesai') {
+              updateData.status = 'ready for update';
+            } else {
+              updateData.status = 'batal';
+            }
+          } else if (userRole === 'finance') {
+            updateData.status = 'paid off';
+          } else if (userRole === 'helpdesk') {
+            updateData.status = actionType === 'selesai' ? 'selesai' : 'batal';
+          }
+        }
+
+        // Update inquiry data first
+        updateInquiry(inquiry.id, updateData);
+
+        // Update status separately if needed (fire and forget)
+        if (updateData instanceof FormData) {
+          // For FormData, status is already appended
+        } else if (updateData.status && updateData.status !== inquiry.status) {
+          updateInquiryStatus(inquiry.id, { status: updateData.status });
+        }
+
+        // Immediately close modal for all roles
+        onClose();
+      } catch (error) {
+        console.error('Error updating inquiry:', error);
+      } finally {
+        setIsSubmitting(false);
+      }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -168,33 +260,42 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
       case 'produksi':
         return (
           <>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Type Project *
-              </label>
-              <div className="relative">
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white text-gray-700 text-base font-medium transition-all duration-150 appearance-none cursor-pointer shadow-sm"
-                  style={{ minHeight: '44px', WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
-                  required
-                >
-                  <option value="" disabled hidden>Pilih Tipe Project</option>
-                  <option value="berbayar">Berbayar</option>
-                  <option value="gratis">Gratis</option>
-                </select>
-                <span className="pointer-events-none absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                </span>
-              </div>
-            </div>
 
-            {formData.type === 'berbayar' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fee (Rp)
-                </label>
+            <div className="flex flex-col sm:flex-row gap-4 items-end">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Type Project *</label>
+                <div className="relative" ref={typeDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsTypeDropdownOpen((v) => !v)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 text-base font-medium transition-all duration-150 appearance-none cursor-pointer shadow-sm flex items-center justify-between"
+                    style={{ minHeight: '44px' }}
+                  >
+                    <span>{formData.type === '' ? 'Pilih Tipe Project' : (formData.type === 'berbayar' ? 'Berbayar' : 'Gratis')}</span>
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" className={`ml-2 transition-transform ${isTypeDropdownOpen ? 'rotate-180' : ''}`}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                  {isTypeDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-y-auto" style={{ maxHeight: '120px' }}>
+                      <button
+                        type="button"
+                        onClick={() => { setFormData(prev => ({ ...prev, type: 'berbayar' })); setIsTypeDropdownOpen(false); }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors first:rounded-t-lg ${formData.type === 'berbayar' ? 'bg-gray-100' : ''}`}
+                      >
+                        Berbayar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setFormData(prev => ({ ...prev, type: 'gratis', fee: '' })); setIsTypeDropdownOpen(false); }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors last:rounded-b-lg ${formData.type === 'gratis' ? 'bg-gray-100' : ''}`}
+                      >
+                        Gratis
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Fee (Rp)</label>
                 <input
                   type="text"
                   value={formData.fee ? formatNumber(formData.fee) : ''}
@@ -202,14 +303,15 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
                     const rawValue = parseNumber(e.target.value);
                     setFormData(prev => ({ ...prev, fee: rawValue }));
                   }}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none ${formData.type === 'gratis' ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''}`}
                   placeholder="0"
                   required={formData.type === 'berbayar'}
                   style={{ MozAppearance: 'textfield' }}
                   onWheel={(e) => e.currentTarget.blur()} // Prevent scroll wheel from changing value
+                  disabled={formData.type === 'gratis'}
                 />
               </div>
-            )}
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -235,7 +337,7 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
                       </span>{' '}
                       or drag and drop
                     </p>
-                    <p className="text-xs text-gray-500">PDF, JPG, PNG, GIF up to 10MB</p>
+                    <p className="text-xs text-gray-500">PDF, JPG, PNG, GIF up to 5MB</p>
                   </div>
                 </div>
                 <input
@@ -513,13 +615,37 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
                 <span className="font-medium">Status:</span> {inquiry.status}
               </p>
               <p className="text-gray-600">
-                <span className="font-medium">Created:</span> {new Date(inquiry.created_at).toLocaleDateString('id-ID', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
+                <span className="font-medium">Created:</span> {
+                  (() => {
+                    // Support both created_at and createdAt
+                    const val = inquiry.created_at || inquiry.createdAt;
+                    if (!val) return '-';
+                    let dateObj: Date | null = null;
+                    if (typeof val === 'object' && val !== null && ('$date' in (val as any))) {
+                      // MongoDB extended JSON format
+                      dateObj = new Date((val as any).$date);
+                    } else if (typeof val === 'object' && val !== null && (val as any) instanceof Date) {
+                      dateObj = val as any;
+                    } else if (typeof val === 'string' && !isNaN(Date.parse(val))) {
+                      dateObj = new Date(val);
+                    } else if (typeof val === 'number') {
+                      dateObj = new Date(val);
+                    } else if (typeof val === 'string' && /^\d+$/.test(val)) {
+                      // Jika string angka (timestamp)
+                      dateObj = new Date(Number(val));
+                    }
+                    if (dateObj && !isNaN(dateObj.getTime())) {
+                      return dateObj.toLocaleDateString('id-ID', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      });
+                    }
+                    return '-';
+                  })()
+                }
               </p>
               <p className="text-gray-600">
                 <span className="font-medium">Created by:</span> {inquiry.created_by || '-'}
@@ -565,7 +691,7 @@ const ActionModal: React.FC<ActionModalProps> = ({ isOpen, onClose, inquiry, use
               value={formData.notes}
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               rows={4}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-0 focus:border-gray-300 resize-none"
               placeholder="Tambahkan catatan..."
             />
           </div>

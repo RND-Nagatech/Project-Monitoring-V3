@@ -1,3 +1,60 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+/* --- Modern Form & Modal Styles  --- */
+.form-input, .form-select, .form-textarea {
+  @apply rounded-lg border border-gray-300 bg-white text-gray-900 shadow-sm focus:outline-none transition;
+}
+.form-input:disabled, .form-select:disabled, .form-textarea:disabled {
+  @apply bg-gray-100 text-gray-400 cursor-not-allowed;
+}
+.form-label {
+  @apply block text-sm font-medium text-gray-700 mb-2;
+}
+.form-button {
+  @apply rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 transition flex items-center justify-center gap-2 shadow;
+}
+.form-button:disabled {
+  @apply bg-gray-300 text-gray-500 cursor-not-allowed;
+}
+.modal {
+  @apply rounded-2xl shadow-2xl p-8 bg-white;
+}
+.custom-dropdown {
+  @apply relative;
+}
+.custom-dropdown-btn {
+  @apply w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 text-base font-medium transition appearance-none cursor-pointer shadow-sm flex items-center justify-between;
+}
+.custom-dropdown-list {
+  @apply absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-y-auto;
+}
+.custom-dropdown-item {
+  @apply w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f7fafc; /* Tailwind gray-50 */
+  color: #222;
+  min-height: 100vh;
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Utility for card backgrounds */
+.card {
+  @apply bg-white rounded-xl shadow-md;
+}
+
+/* Utility for dashboard grid spacing */
+.dashboard-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6;
+}
+
+/* Utility for badge status */
+.badge-status {
+  @apply inline-block px-3 py-1 rounded-full text-xs font-semibold;
+}
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

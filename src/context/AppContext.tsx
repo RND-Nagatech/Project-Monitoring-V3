@@ -1,14 +1,30 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, Inquiry } from '../types';
-import { dummyInquiries, dummyUsers } from '../data/dummy';
+import { User, Inquiry, AuthResponse } from '../types';
+import { authAPI, inquiryAPI } from '../services/api';
 
 interface AppContextType {
   user: User | null;
   inquiries: Inquiry[];
-  login: (user: User) => void;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+  loading: boolean;
+  error: string | null;
+  login: (credentials: { username: string; password: string }) => Promise<void>;
   logout: () => void;
-  addInquiry: (inquiry: Omit<Inquiry, 'id' | 'created_at' | 'updated_at'>) => void;
-  updateInquiry: (id: string, updates: Partial<Inquiry>) => void;
+  addInquiry: (inquiryData: FormData) => Promise<void>;
+  updateInquiry: (id: string, updates: Partial<Inquiry> | FormData) => Promise<void>;
+  updateInquiryStatus: (id: string, statusData: { status: string; followUpMessage?: string }) => Promise<void>;
+  refreshInquiries: (params?: any) => Promise<void>;
+  setPage: (page: number) => void;
+  setRowsPerPage: (limit: number) => void;
+  setSearchTerm: (term: string) => void;
+  setStatusFilter: (status: string) => void;
+  searchTerm: string;
+  statusFilter: string;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -23,69 +39,190 @@ export const useApp = () => {
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [inquiries, setInquiries] = useState<Inquiry[]>(dummyInquiries);
+  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 1 });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  // Monitor user state changes
+  useEffect(() => {
+    // User state monitoring removed for production
+  }, [user]);
 
   // Check for saved user data on app initialization
   useEffect(() => {
     const savedUserData = localStorage.getItem('userData');
-    if (savedUserData) {
+    const token = localStorage.getItem('token');
+
+    if (savedUserData && token) {
       try {
         const userData = JSON.parse(savedUserData);
-        // Verify the user still exists in dummy data
-        const existingUser = dummyUsers.find(u => u.user_id === userData.user_id);
-        if (existingUser) {
-          setUser(existingUser);
-        } else {
-          // Clear invalid data
-          localStorage.removeItem('userData');
-        }
+        setUser(userData);
+        // Refresh inquiries if user is logged in
+        refreshInquiries({ page: 1, limit: 10 });
       } catch (error) {
-        console.error('Error parsing saved user data:', error);
         localStorage.removeItem('userData');
+        localStorage.removeItem('token');
       }
     }
   }, []);
 
-  const login = (userData: User) => {
-    setUser(userData);
-    // Save user data to localStorage for persistence
-    localStorage.setItem('userData', JSON.stringify(userData));
+  const login = async (credentials: { username: string; password: string }) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response: AuthResponse = await authAPI.login({ user_id: credentials.username, password: credentials.password });
+
+      const { token, user: userData } = response.data;
+
+      // Store token and user data
+      localStorage.setItem('token', token);
+      localStorage.setItem('userData', JSON.stringify(userData));
+
+      setUser(userData);
+
+      // Try to refresh inquiries, but don't fail login if it fails
+      try {
+        await refreshInquiries();
+      } catch (inquiryError) {
+        // Don't throw error here - login was successful, just log the error
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Login failed');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = () => {
     setUser(null);
-    // Only clear current session data, keep remember me credentials
+    setInquiries([]);
     localStorage.removeItem('userData');
+    localStorage.removeItem('token');
   };
 
-  const addInquiry = (inquiryData: Omit<Inquiry, 'id' | 'created_at' | 'updated_at'>) => {
-    const newInquiry: Inquiry = {
-      ...inquiryData,
-      id: Date.now().toString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setInquiries(prev => [...prev, newInquiry]);
+  type InquiryQueryParams = { page?: number; limit?: number; search?: string; status?: string };
+  const refreshInquiries = async (params: InquiryQueryParams = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      // params: { page, limit, search, status }
+      const response = await inquiryAPI.getAll({
+        page: params.page || pagination.page,
+        limit: params.limit || pagination.limit,
+        search: params.search !== undefined ? params.search : searchTerm,
+        status: params.status !== undefined ? params.status : statusFilter,
+      });
+      // API returns { success: true, data: [...], pagination: {...} }
+      const mappedInquiries = (response.data || []).map((inquiry: any) => ({
+        ...inquiry,
+        id: inquiry._id || inquiry.id
+      }));
+      setInquiries(mappedInquiries);
+      if (response.pagination) {
+        setPagination(response.pagination);
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to fetch inquiries');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateInquiry = (id: string, updates: Partial<Inquiry>) => {
-    setInquiries(prev => 
-      prev.map(inquiry => 
-        inquiry.id === id 
-          ? { ...inquiry, ...updates, updated_at: new Date().toISOString() }
-          : inquiry
-      )
-    );
+  // Handlers for pagination/filter
+  const setPage = (page: number) => {
+    setPagination(prev => ({ ...prev, page }));
+    refreshInquiries({ page });
+  };
+  const setRowsPerPage = (limit: number) => {
+    setPagination(prev => ({ ...prev, limit, page: 1 }));
+    refreshInquiries({ limit, page: 1 });
+  };
+  const setSearchTermHandler = (term: string) => {
+    setSearchTerm(term);
+    refreshInquiries({ search: term, page: 1 });
+  };
+  const setStatusFilterHandler = (status: string) => {
+    setStatusFilter(status);
+    refreshInquiries({ status, page: 1 });
+  };
+
+  const addInquiry = async (inquiryData: FormData) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      await inquiryAPI.create(inquiryData);
+      await refreshInquiries(); // Refresh the list after adding
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to add inquiry');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateInquiry = async (id: string, updates: Partial<Inquiry> | FormData) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log('Frontend: Calling updateInquiry with ID:', id);
+      console.log('Frontend: Update data:', updates);
+
+      const result = await inquiryAPI.update(id, updates);
+      console.log('Frontend: API response:', result);
+
+      await refreshInquiries(); // Refresh the list after updating
+      console.log('Frontend: Inquiries refreshed after update');
+    } catch (error) {
+      console.error('Frontend: Update inquiry failed:', error);
+      setError(error instanceof Error ? error.message : 'Failed to update inquiry');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateInquiryStatus = async (id: string, statusData: { status: string; followUpMessage?: string }) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      await inquiryAPI.updateStatus(id, statusData);
+      await refreshInquiries(); // Refresh the list after status update
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to update inquiry status');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <AppContext.Provider value={{
       user,
       inquiries,
+      pagination,
+      loading,
+      error,
       login,
       logout,
       addInquiry,
       updateInquiry,
+      updateInquiryStatus,
+      refreshInquiries,
+      setPage,
+      setRowsPerPage,
+      setSearchTerm: setSearchTermHandler,
+      setStatusFilter: setStatusFilterHandler,
+      searchTerm,
+      statusFilter,
     }}>
       {children}
     </AppContext.Provider>

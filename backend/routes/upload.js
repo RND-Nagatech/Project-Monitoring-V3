@@ -95,6 +95,54 @@ router.post('/single', [protect, upload.single('file')], async (req, res) => {
   }
 });
 
+// @desc    Upload image for rich text editor
+// @route   POST /api/upload/image
+// @access  Private
+router.post('/image', [protect, upload.single('image')], async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image uploaded'
+      });
+    }
+
+    // Check if file is an image
+    const fileExtension = path.extname(req.file.originalname).toLowerCase();
+    if (!['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(fileExtension)) {
+      // Delete uploaded file if not an image
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({
+        success: false,
+        message: 'Only image files are allowed (jpg, jpeg, png, gif, webp)'
+      });
+    }
+
+    // Get base URL from environment or construct from request
+    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+
+    const imageData = {
+      url: `${baseUrl}/uploads/${req.file.filename}`,
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      size: req.file.size,
+      uploadedAt: new Date()
+    };
+
+    res.json({
+      success: true,
+      message: 'Image uploaded successfully',
+      data: imageData
+    });
+  } catch (error) {
+    console.error('Image upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Image upload failed'
+    });
+  }
+});
+
 // @desc    Upload multiple files
 // @route   POST /api/upload/multiple
 // @access  Private

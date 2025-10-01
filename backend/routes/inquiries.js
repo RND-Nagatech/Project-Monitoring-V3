@@ -1,15 +1,77 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const Inquiry = require('../models/Inquiry');
 const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Helper function to get full URL for attachments
+const getAttachmentUrl = (filename) => {
+  const port = process.env.PORT || 5001;
+  return `http://localhost:${port}/uploads/${filename}`;
+};
+
+// Utility function to strip HTML tags but preserve lists and images
+const stripHtmlTags = (html) => {
+  // Allow ul, ol, li tags for lists and img tags for images
+  const allowedTags = ['ul', 'ol', 'li', 'img'];
+  const allowedRegex = new RegExp(`<(?!/?(${allowedTags.join('|')})\\b)[^>]*>`, 'gi');
+  return html.replace(allowedRegex, '').trim();
+};
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '../uploads');
+    // Ensure directory exists
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const extension = path.extname(file.originalname);
+    const basename = path.basename(file.originalname, extension);
+    cb(null, `${basename}-${uniqueSuffix}${extension}`);
+  }
+});
+
+// File filter
+const fileFilter = (req, file, cb) => {
+  // Allowed file types
+  const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx/;
+
+  // Check extension
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+
+  // Check mime type
+  const mimetype = allowedTypes.test(file.mimetype);
+
+  if (mimetype && extname) {
+    return cb(null, true);
+  } else {
+    cb(new Error('Invalid file type. Only images, PDFs, and office documents are allowed.'));
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 5000000 // 5MB default
+  },
+  fileFilter: fileFilter
+});
+
 // Validation rules
 const inquiryValidation = [
-  body('nomor_whatsapp_customer').notEmpty().withMessage('Customer WhatsApp number is required'),
-  body('nama_toko').notEmpty().withMessage('Store name is required'),
-  body('deskripsi').notEmpty().withMessage('Description is required'),
+  body('nomor_whatsapp_customer').optional(),
+  body('nama_toko').optional(),
+  body('deskripsi').optional(),
   body('status').optional().isIn(['pending', 'progress', 'selesai', 'batal', 'wait for payment', 'on going QA', 'on progress QA', 'paid off', 'ready for update']).withMessage('Invalid status'),
   body('type').optional().isIn(['berbayar', 'gratis']).withMessage('Type must be berbayar or gratis'),
   body('fee').optional().isNumeric().withMessage('Fee must be a number'),
@@ -117,21 +179,46 @@ router.get('/:id', protect, async (req, res) => {
 // @desc    Create new inquiry
 // @route   POST /api/inquiries
 // @access  Private (Helpdesk only)
-router.post('/', [protect, authorize('helpdesk'), ...inquiryValidation], async (req, res) => {
+router.post('/', [protect, upload.array('attachments', 10)], async (req, res) => {
   try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
+    // Validate required fields
+    const { nomor_whatsapp_customer, nama_toko, deskripsi, status, divisi, created_by } = req.body;
+
+    if (!nomor_whatsapp_customer || !nama_toko || !deskripsi) {
       return res.status(400).json({
         success: false,
         message: 'Validation failed',
-        errors: errors.array()
+        errors: [
+          { msg: 'Customer WhatsApp number is required', param: 'nomor_whatsapp_customer' },
+          { msg: 'Store name is required', param: 'nama_toko' },
+          { msg: 'Description is required', param: 'deskripsi' }
+        ]
+      });
+    }
+
+    // Process uploaded files
+    const attachments = [];
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        const fileType = file.mimetype.startsWith('image/') ? 'image' : 'pdf';
+        attachments.push({
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name: file.originalname,
+          url: getAttachmentUrl(file.filename),
+          type: fileType,
+          size: file.size
+        });
       });
     }
 
     const inquiryData = {
-      ...req.body,
-      created_by: req.user.name
+      nomor_whatsapp_customer,
+      nama_toko,
+      deskripsi: stripHtmlTags(deskripsi), // Strip HTML tags from description
+      status: req.user.role === 'helpdesk' ? 'pending' : (status || undefined), // Set to pending for helpdesk users
+      divisi: divisi || '',
+      created_by: created_by || req.user.name,
+      attachments
     };
 
     const inquiry = await Inquiry.create(inquiryData);
@@ -153,11 +240,16 @@ router.post('/', [protect, authorize('helpdesk'), ...inquiryValidation], async (
 // @desc    Update inquiry
 // @route   PUT /api/inquiries/:id
 // @access  Private
-router.put('/:id', [protect, ...inquiryValidation], async (req, res) => {
+router.put('/:id', [protect, upload.array('attachments', 10), ...inquiryValidation], async (req, res) => {
   try {
+    console.log('PUT /api/inquiries/:id called with params:', req.params);
+    console.log('Request body:', req.body);
+    console.log('User role:', req.user.role);
+
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
         message: 'Validation failed',
@@ -166,16 +258,74 @@ router.put('/:id', [protect, ...inquiryValidation], async (req, res) => {
     }
 
     const inquiry = await Inquiry.findById(req.params.id);
+    console.log('Found inquiry:', inquiry ? 'YES' : 'NO');
 
     if (!inquiry) {
+      console.log('Inquiry not found for ID:', req.params.id);
       return res.status(404).json({
         success: false,
         message: 'Inquiry not found'
       });
     }
 
-    // Role-based update permissions
-    const updateData = { ...req.body };
+    // Process uploaded files for attachments
+    const newAttachments = [];
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        const fileType = file.mimetype.startsWith('image/') ? 'image' : 'pdf';
+        newAttachments.push({
+          id: file.filename,
+          name: file.originalname,
+          type: fileType,
+          size: file.size,
+          url: getAttachmentUrl(file.filename),
+        });
+      });
+    }
+
+  // Role-based update permissions
+  const updateData = { ...req.body };
+  console.log('Initial updateData:', updateData);
+  console.log('divisi_notes received:', updateData.divisi_notes);
+
+    // Strip HTML tags from description if it's being updated
+    if (updateData.deskripsi) {
+      updateData.deskripsi = stripHtmlTags(updateData.deskripsi);
+    }
+
+
+    // Parse notes if sent as string (from FormData)
+    if (typeof updateData.notes === 'string') {
+      try {
+        updateData.notes = JSON.parse(updateData.notes);
+      } catch (e) {
+        updateData.notes = [];
+      }
+    }
+
+    // Merge only if new files uploaded and no attachments array sent from frontend
+    if (newAttachments.length > 0) {
+      updateData.attachments = [...(inquiry.attachments || []), ...newAttachments];
+    } else if (updateData.attachments && Array.isArray(updateData.attachments)) {
+      // If frontend sends attachments, use as is (avoid double)
+      // Optionally: filter duplicate by id/url here if needed
+    }
+
+    // Force update divisi_notes even if empty string
+    if (typeof updateData.divisi_notes !== 'undefined') {
+      inquiry.divisi_notes = updateData.divisi_notes;
+      updateData.divisi_notes = updateData.divisi_notes;
+
+      // Push to notes array for history
+      inquiry.notes = inquiry.notes || [];
+      inquiry.notes.push({
+        content: updateData.divisi_notes,
+        created_by: req.user.name,
+        created_at: new Date()
+      });
+      inquiry.markModified('notes');
+      await inquiry.save(); // Save notes array update
+    }
 
     // Track who made the update
     if (req.user.role === 'produksi') {
@@ -190,11 +340,15 @@ router.put('/:id', [protect, ...inquiryValidation], async (req, res) => {
       updateData.edited_at = new Date();
     }
 
+    console.log('Final updateData:', updateData);
+
     const updatedInquiry = await Inquiry.findByIdAndUpdate(
       req.params.id,
       updateData,
       { new: true, runValidators: true }
     );
+
+    console.log('Update result:', updatedInquiry ? 'SUCCESS' : 'FAILED');
 
     res.json({
       success: true,
@@ -203,6 +357,41 @@ router.put('/:id', [protect, ...inquiryValidation], async (req, res) => {
     });
   } catch (error) {
     console.error('Update inquiry error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// @desc    Update inquiry status only
+// @route   PATCH /api/inquiries/:id/status
+// @access  Private
+router.patch('/:id/status', protect, async (req, res) => {
+  try {
+    const { status, followUpMessage } = req.body;
+    const inquiry = await Inquiry.findById(req.params.id);
+
+    if (!inquiry) {
+      return res.status(404).json({
+        success: false,
+        message: 'Inquiry not found'
+      });
+    }
+
+    inquiry.status = status;
+    if (followUpMessage) {
+      inquiry.divisi_notes = followUpMessage;
+    }
+    await inquiry.save();
+
+    res.json({
+      success: true,
+      message: 'Inquiry status updated successfully',
+      data: inquiry
+    });
+  } catch (error) {
+    console.error('Update inquiry status error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'

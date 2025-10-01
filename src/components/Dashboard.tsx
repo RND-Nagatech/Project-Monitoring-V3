@@ -5,11 +5,14 @@ import InquiryForm from './InquiryForm';
 import InquiryTable from './InquiryTable';
 
 const Dashboard: React.FC = () => {
-  const { user, logout, inquiries } = useApp();
+  const { user, logout, inquiries, pagination } = useApp();
   const [isFormOpen, setIsFormOpen] = useState(false);
 
+
+  // Use pagination.total for total inquiries (from backend)
   const getStatsData = () => {
-    const totalInquiries = inquiries.length;
+    const totalInquiries = pagination.total;
+    // For other stats, still use current page data (unless backend provides global stats)
     const pendingInquiries = inquiries.filter(i => i.status === 'pending').length;
     const progressInquiries = inquiries.filter(i => i.status === 'progress').length;
     const completedInquiries = inquiries.filter(i => i.status === 'selesai').length;

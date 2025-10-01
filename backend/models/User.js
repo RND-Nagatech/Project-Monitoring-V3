@@ -4,60 +4,93 @@ const bcrypt = require('bcryptjs');
 const userSchema = new mongoose.Schema({
   user_id: {
     type: String,
-    required: [true, 'User ID is required'],
-    unique: true,
+    required: true,
+    unique: true, // contoh: "admin001"
     trim: true
   },
   name: {
     type: String,
-    required: [true, 'Name is required'],
+    required: true,
     trim: true
   },
   role: {
     type: String,
-    enum: {
-      values: ['produksi', 'qc', 'finance', 'helpdesk'],
-      message: 'Role must be one of: produksi, qc, finance, helpdesk'
-    },
-    required: [true, 'Role is required']
+    enum: ['produksi', 'qc', 'finance', 'helpdesk', 'admin'],
+    required: true
+  },
+  email: {
+    type: String,
+    trim: true,
+    lowercase: true,
+    unique: true,
+    sparse: true // bisa null, tapi kalau ada harus unik
   },
   password: {
     type: String,
-    required: [true, 'Password is required'],
-    minlength: [6, 'Password must be at least 6 characters'],
-    select: false // Don't include password in queries by default
+    required: true
+    // simpan hasil hash (bcrypt), bukan plain text
   },
   isActive: {
     type: Boolean,
     default: true
-  }
+  },
+  lastLogin: Date
 }, {
   timestamps: true
 });
 
-// Hash password before saving
+// Indexes buat optimasi query
+userSchema.index({ user_id: 1 });
+userSchema.index({ role: 1 });
+userSchema.index({ isActive: 1 });
+
+// Hapus password kalau data dikirim keluar (toJSON / toObject)
+userSchema.set('toJSON', {
+  virtuals: true,
+  transform: (doc, ret) => {
+    delete ret.password;
+    return ret;
+  }
+});
+
+userSchema.set('toObject', {
+  virtuals: true,
+  transform: (doc, ret) => {
+    delete ret.password;
+    return ret;
+  }
+});
+
+// Hash password sebelum save
 userSchema.pre('save', async function(next) {
+  // Skip kalau password tidak diubah
   if (!this.isModified('password')) return next();
 
   try {
+    // Hash password dengan bcrypt
     const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
+    const hashedPassword = await bcrypt.hash(this.password, salt);
+    this.password = hashedPassword;
     next();
   } catch (error) {
     next(error);
   }
 });
 
-// Compare password method
+// Method untuk compare password
 userSchema.methods.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
+  try {
+    const result = await bcrypt.compare(candidatePassword, this.password);
+    return result;
+  } catch (error) {
+    throw error;
+  }
 };
 
-// Remove password from JSON output
-userSchema.methods.toJSON = function() {
-  const userObject = this.toObject();
-  delete userObject.password;
-  return userObject;
+// Update lastLogin saat login berhasil
+userSchema.methods.updateLastLogin = function() {
+  this.lastLogin = new Date();
+  return this.save();
 };
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model('User', userSchema, "tm_user");

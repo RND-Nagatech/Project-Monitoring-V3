@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { LogIn, User, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { dummyUsers } from '../data/dummy';
 
 const LoginForm: React.FC = () => {
   const [userId, setUserId] = useState('');
@@ -14,20 +13,22 @@ const LoginForm: React.FC = () => {
   const { login } = useApp();
 
   // Load saved credentials from local storage on component mount (auto-fill only)
+  // Agar auto-fill hanya sekali saat mount
+  const [autoFilled, setAutoFilled] = useState(false);
   React.useEffect(() => {
+    if (autoFilled) return;
     const savedUserId = localStorage.getItem('userId');
     const savedPassword = localStorage.getItem('password');
     const savedRememberMe = localStorage.getItem('rememberMe') === 'true';
-
-    // Auto-fill form if credentials exist
-    if (savedUserId && savedPassword) {
+    if (savedRememberMe && savedUserId && savedPassword) {
       setUserId(savedUserId);
       setPassword(savedPassword);
+      setRememberMe(true);
+    } else {
+      setRememberMe(false);
     }
-
-    // Only check remember me checkbox if it was explicitly saved as true
-    setRememberMe(savedRememberMe);
-  }, []);
+    setAutoFilled(true);
+  }, [autoFilled]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,13 +43,6 @@ const LoginForm: React.FC = () => {
     if (!userId.trim()) {
       newFieldErrors.userId = 'User id belum diisi';
       hasErrors = true;
-    } else {
-      // Check if user exists
-      const user = dummyUsers.find(u => u.user_id === userId.trim());
-      if (!user) {
-        newFieldErrors.userId = 'User ID tidak ditemukan';
-        hasErrors = true;
-      }
     }
 
     if (!password.trim()) {
@@ -63,30 +57,53 @@ const LoginForm: React.FC = () => {
     }
 
     try {
-      // Simulate API call delay for better UX
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Simple authentication with dummy data
-      const user = dummyUsers.find(u => u.user_id === userId);
-      if (user && password === 'password123') {
-        // Always save user data for session persistence
-        login(user);
-        
-        // Handle remember me functionality
-        if (rememberMe) {
-          localStorage.setItem('userId', userId);
-          localStorage.setItem('password', password);
-          localStorage.setItem('rememberMe', 'true');
-        } else {
-          localStorage.removeItem('userId');
-          localStorage.removeItem('password');
-          localStorage.removeItem('rememberMe');
-        }
+      // Use the new login function from context
+      await login({ username: userId.trim(), password });
+      // Handle remember me functionality
+      if (rememberMe) {
+        localStorage.setItem('userId', userId);
+        localStorage.setItem('password', password);
+        localStorage.setItem('rememberMe', 'true');
       } else {
-        setError('Password salah');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('password');
+        localStorage.removeItem('rememberMe');
       }
-    } catch (error) {
-      setError('Terjadi kesalahan saat login');
+    } catch (error: any) {
+      // Default error message
+      let errMsg = 'Terjadi kesalahan saat login';
+      let newFieldErrors = { userId: '', password: '' };
+      // Cek error dari backend
+      if (error && typeof error === 'object') {
+        // Axios error
+        if (error.response && error.response.status === 401) {
+          // Cek pesan dari backend
+          const msg = error.response.data?.message?.toLowerCase?.() || '';
+          if (msg.includes('user') && msg.includes('tidak ditemukan')) {
+            newFieldErrors.userId = 'User ID tidak ditemukan';
+            errMsg = '';
+          } else if (msg.includes('password') && msg.includes('salah')) {
+            newFieldErrors.password = 'Password salah';
+            errMsg = '';
+          } else if (msg.includes('akun') && msg.includes('dinonaktifkan')) {
+            errMsg = 'Akun dinonaktifkan';
+          } else if (msg.includes('invalid credential') || msg.includes('invalid username or password')) {
+            newFieldErrors.userId = 'User ID atau password salah';
+            newFieldErrors.password = 'User ID atau password salah';
+            errMsg = '';
+          } else {
+            errMsg = 'User ID atau password salah';
+          }
+        } else if (error.response && error.response.data?.message) {
+          errMsg = error.response.data.message;
+        } else if (error.message) {
+          errMsg = error.message;
+        }
+      } else if (typeof error === 'string') {
+        errMsg = error;
+      }
+      setFieldErrors(newFieldErrors);
+      setError(errMsg);
     } finally {
       setIsLoading(false);
     }
@@ -207,16 +224,6 @@ const LoginForm: React.FC = () => {
             </button>
           </form>
 
-          <div className="mt-6 p-3 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-500 mb-2 font-medium">Demo Accounts:</p>
-            <div className="text-xs text-gray-400 space-y-1">
-              <p>• Produksi: prod001</p>
-              <p>• QC: qc001</p>
-              <p>• Finance: fin001</p>
-              <p>• Helpdesk: help001</p>
-              <p className="mt-2 text-gray-500 font-medium">Password: password123</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

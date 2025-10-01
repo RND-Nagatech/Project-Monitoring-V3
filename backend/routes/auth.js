@@ -95,22 +95,35 @@ router.post('/login', [
     // Check if user exists and get password
     const user = await User.findOne({ user_id }).select('+password');
 
-    if (!user || !(await user.comparePassword(password))) {
+    if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'User ID tidak ditemukan'
+      });
+    }
+
+    const passwordMatch = await user.comparePassword(password);
+
+    if (!passwordMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Password salah'
       });
     }
 
     if (!user.isActive) {
       return res.status(401).json({
         success: false,
-        message: 'Account is deactivated'
+        message: 'Akun dinonaktifkan'
       });
     }
 
     // Generate token
     const token = generateToken(user._id);
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
 
     res.json({
       success: true,
